@@ -5,10 +5,12 @@ import qualified Parser as P
 data Type = Bool | Nat | BadlyTyped
     deriving (Show, Eq)
 
--- Parse
---main = getContents >>= print . P.calc . P.lexer
--- Parse and find type
-main = getContents >>= print . getType . P.calc . P.lexer
+main = do
+    content <- getContents
+    putStr "Parsed: "
+    print . P.calc . P.lexer $ content
+    putStr "Type: "
+    print . getType . P.calc . P.lexer $ content
 
 getType :: P.Exp -> Type
 getType (P.Bbool P.Btrue) = Bool
