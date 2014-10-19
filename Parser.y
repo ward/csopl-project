@@ -23,6 +23,8 @@ import Data.Char
     iszero { TokenIszero }
     '(' { TokenOpenBracket }
     ')' { TokenCloseBracket }
+    add { TokenAdd }
+    mult { TokenMult }
 
 %%
 
@@ -34,6 +36,8 @@ Exp
     | pred Exp { Pred $2 }
     | '0' { Zero }
     | iszero Exp { Iszero $2 }
+    | add Exp Exp { Add $2 $3 }
+    | mult Exp Exp { Mult $2 $3 }
 
 Bbool
     : false { Bfalse }
@@ -50,6 +54,8 @@ data Exp
     | Iszero Exp
     | Succ Exp
     | Pred Exp
+    | Add Exp Exp
+    | Mult Exp Exp
         deriving (Show)
 
 data Bbool
@@ -69,6 +75,8 @@ data Token
     | TokenIszero
     | TokenOpenBracket
     | TokenCloseBracket
+    | TokenAdd
+    | TokenMult
         deriving (Show)
 
 
@@ -89,5 +97,7 @@ lexer cs =
         ("pred", rest) -> TokenPred : lexer rest
         ("true", rest) -> TokenTrue : lexer rest
         ("false", rest) -> TokenFalse : lexer rest
+        ("add", rest) -> TokenAdd : lexer rest
+        ("mult", rest) -> TokenMult : lexer rest
 
 }
