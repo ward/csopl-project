@@ -5,6 +5,11 @@ import qualified Parser as P
 data Type = Bool | Nat | BadlyTyped
     deriving (Show, Eq)
 
+data Value = Vtrue | Vfalse | NumVal NumValue
+    deriving (Show, Eq)
+data NumValue = Zero | Succ NumValue
+    deriving (Show, Eq)
+
 main = do
     content <- getContents
     let parsed = P.calc . P.lexer $ content
@@ -35,23 +40,23 @@ getType (P.Iszero e)
 -- TODO: Rewrite to more strictly follow the rules as described
 --       Idea: Rerun eval on it all, only executing a rule at the time
 --       If we're done, return what we have
-evaluate :: P.Exp -> P.Exp
-evaluate (P.Bbool P.Btrue) = P.Bbool P.Btrue
-evaluate (P.Bbool P.Bfalse) = P.Bbool P.Bfalse
-evaluate (P.Zero) = P.Zero
+evaluate :: P.Exp -> Value
+evaluate (P.Bbool P.Btrue) = Vtrue
+evaluate (P.Bbool P.Bfalse) = Vfalse
+evaluate (P.Zero) = NumVal Zero
 evaluate (P.Iszero e) = case evaluate e of
-    P.Zero -> P.Bbool P.Btrue
-    P.Succ _ -> P.Bbool P.Bfalse
+    NumVal Zero -> Vtrue
+    NumVal (Succ _) -> Vfalse
     otherwise -> error "Evaluation failed"
 evaluate (P.Succ e) = case evaluate e of
-    P.Zero -> P.Succ P.Zero
-    P.Succ _ -> P.Succ $ evaluate e
+    NumVal Zero -> NumVal $ Succ Zero
+    NumVal (Succ ev1) -> NumVal $ Succ (Succ ev1)
     otherwise -> error "Evaluation failed"
 evaluate (P.Pred e) = case evaluate e of
-    P.Zero -> P.Zero
-    P.Succ ev -> ev
+    NumVal Zero -> NumVal Zero
+    NumVal (Succ ev) -> NumVal ev
     otherwise -> error "Evaluation failed"
 evaluate (P.If c t f) = case evaluate c of
-    P.Bbool P.Btrue -> evaluate t
-    P.Bbool P.Bfalse -> evaluate f
+    Vtrue -> evaluate t
+    Vfalse -> evaluate f
     otherwise -> error "Evaluation failed"
