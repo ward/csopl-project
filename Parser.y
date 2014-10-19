@@ -21,11 +21,14 @@ import Data.Char
     succ { TokenSucc }
     pred { TokenPred }
     iszero { TokenIszero }
+    '(' { TokenOpenBracket }
+    ')' { TokenCloseBracket }
 
 %%
 
 Exp
-    : if Exp then Exp else Exp { If $2 $4 $6 }
+    : '(' Exp ')' { $2 }
+    | if Exp then Exp else Exp { If $2 $4 $6 }
     | Bbool { Bbool $1 }
     | succ Exp { Succ $2 }
     | pred Exp { Pred $2 }
@@ -38,7 +41,7 @@ Bbool
 
 {
 parseError :: [Token] -> a
-parseError _ = error "Error parsing your shit"
+parseError _ = error "I'm afraid I cannot parse that"
 
 data Exp
     = Bbool Bbool
@@ -64,6 +67,8 @@ data Token
     | TokenSucc
     | TokenPred
     | TokenIszero
+    | TokenOpenBracket
+    | TokenCloseBracket
         deriving (Show)
 
 
@@ -72,6 +77,8 @@ lexer [] = []
 lexer (c:cs)
     | isSpace c = lexer cs
 lexer ('0':cs) = TokenZero : lexer cs
+lexer ('(':cs) = TokenOpenBracket : lexer cs
+lexer (')':cs) = TokenCloseBracket : lexer cs
 lexer cs =
     case span isAlpha cs of
         ("if", rest) -> TokenIf : lexer rest

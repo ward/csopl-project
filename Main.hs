@@ -54,3 +54,4 @@ evaluate (P.Pred e) = case evaluate e of
 evaluate (P.If c t f) = case evaluate c of
     P.Bbool P.Btrue -> evaluate t
     P.Bbool P.Bfalse -> evaluate f
+    otherwise -> error "Evaluation failed"
