@@ -1,0 +1,35 @@
+true
+false
+0
+(((0)))
+succ 0
+succ succ succ 0
+pred succ succ 0
+pred 0
+if true then false else true
+if false then 0 else succ 0
+if (if true then false else true) then true else false
+if if true then false else true then true else false
+iszero 0
+iszero succ 0
+if iszero pred pred succ 0 then false else true
+add 0 0
+add succ 0 0
+add 0 succ 0
+pred add succ succ succ 0 succ succ 0
+sub 0 0
+sub succ 0 0
+sub 0 succ 0
+sub succ succ succ succ succ 0 succ succ 0
+sub succ succ 0 succ succ succ succ succ 0
+succ sub succ 0 0
+iszero sub succ succ 0 succ succ succ 0
+mult 0 0
+mult succ 0 0
+mult 0 succ 0
+mult succ 0 succ 0
+mult succ succ 0 succ succ 0
+mult mult mult succ succ 0 succ succ 0 succ succ 0 succ succ 0
+div succ succ 0 succ succ 0
+div mult succ succ succ 0 succ succ 0 succ succ succ 0
+div sub succ succ succ succ succ 0 succ 0 succ succ 0

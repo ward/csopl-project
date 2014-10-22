@@ -13,9 +13,11 @@ data NumValue = Zero | Succ NumValue
 main = do
     content <- getContents
     let parsed = P.calc . P.lexer $ content
-    putStr "Parsed: "
+    putStr "Input:     "
+    putStr content
+    putStr "Parsed:    "
     print parsed
-    putStr "Type: "
+    putStr "Type:      "
     print . getType $ parsed
     putStr "Evaluated: "
     print . eval $ parsed
