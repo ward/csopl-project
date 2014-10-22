@@ -18,7 +18,7 @@ main = do
     putStr "Type: "
     print . getType $ parsed
     putStr "Evaluated: "
-    print . evaluate $ parsed
+    print . eval $ parsed
 
 getType :: P.Exp -> Type
 getType (P.Bbool P.Btrue) = Bool
@@ -48,66 +48,66 @@ getTypeArithmetic e1 e2
     | otherwise = BadlyTyped
 
 
-evaluate :: P.Exp -> Value
-evaluate (P.Bbool P.Btrue) = Vtrue
-evaluate (P.Bbool P.Bfalse) = Vfalse
-evaluate P.Zero = NumVal Zero
-evaluate (P.Iszero e) = iszero $ evaluate e
+eval :: P.Exp -> Value
+eval (P.Bbool P.Btrue) = Vtrue
+eval (P.Bbool P.Bfalse) = Vfalse
+eval P.Zero = NumVal Zero
+eval (P.Iszero e) = iszero $ eval e
     where
         iszero (NumVal Zero)     = Vtrue
         iszero (NumVal (Succ _)) = Vfalse
         iszero _                 = error "Evaluation failed @ iszero"
 -- Slightly stricter than the actual evaluation rules
-evaluate (P.Succ e) = succ $ evaluate e
+eval (P.Succ e) = succ $ eval e
     where
         succ (NumVal nv) = NumVal $ Succ nv
         succ _           = error "Evaluation failed @ succ"
-evaluate (P.Pred e) = pred $ evaluate e
+eval (P.Pred e) = pred $ eval e
     where
         pred (NumVal Zero)      = NumVal Zero
         pred (NumVal (Succ nv)) = NumVal nv
         pred _                  = error "Evaluation failed @ pred"
-evaluate (P.If c t f) = eif $ evaluate c
+eval (P.If c t f) = eif $ eval c
     where
-        eif Vtrue  = evaluate t
-        eif Vfalse = evaluate f
+        eif Vtrue  = eval t
+        eif Vfalse = eval f
         eif _      = error "Evaluation failed @ if"
-evaluate (P.Add e1 e2) = add (evaluate e1) (evaluate e2)
+eval (P.Add e1 e2) = add (eval e1) (eval e2)
     where
         add nv@(NumVal _) (NumVal Zero)      = nv
-        add (NumVal nv1) (NumVal (Succ nv2)) = addRec $ evaluate (P.Add (num2exp nv1) (num2exp nv2))
+        add (NumVal nv1) (NumVal (Succ nv2)) = addRec $ eval (P.Add (num2exp nv1) (num2exp nv2))
         add _ _                              = error "Evaluation failed @ add"
         addRec (NumVal nv) = NumVal $ Succ nv
         addRec _           = error "Evaluation failed @ add"
-evaluate (P.Mult e1 e2) = mult (evaluate e1) (evaluate e2)
+eval (P.Mult e1 e2) = mult (eval e1) (eval e2)
     where
         mult (NumVal _) (NumVal Zero)         = NumVal Zero
-        mult (NumVal nv1) (NumVal (Succ nv2)) = multRec nv1 (evaluate (P.Mult (num2exp nv1) (num2exp nv2)))
+        mult (NumVal nv1) (NumVal (Succ nv2)) = multRec nv1 (eval (P.Mult (num2exp nv1) (num2exp nv2)))
         mult _ _                              = error "Evaluation failed @ mult"
-        multRec nv1 (NumVal nv2) = evaluate $ P.Add (num2exp nv1) (num2exp nv2)
+        multRec nv1 (NumVal nv2) = eval $ P.Add (num2exp nv1) (num2exp nv2)
         multRec _ _              = error "Evaluation failed @ mult"
-evaluate (P.Sub e1 e2) = sub (evaluate e1) (evaluate e2)
+eval (P.Sub e1 e2) = sub (eval e1) (eval e2)
     where
         sub nv@(NumVal _) (NumVal Zero)             = nv
         sub (NumVal Zero) (NumVal (Succ _))         = NumVal Zero
-        sub (NumVal (Succ nv1)) (NumVal (Succ nv2)) = evaluate $ P.Sub (num2exp nv1) (num2exp nv2)
+        sub (NumVal (Succ nv1)) (NumVal (Succ nv2)) = eval $ P.Sub (num2exp nv1) (num2exp nv2)
         sub _ _                                     = error "Evaluation failed @ sub"
 -- Only gives exactly what you expect *if* there is no remainder
-evaluate (P.Div e1 e2) = divv (evaluate e1) (evaluate e2)
+eval (P.Div e1 e2) = divv (eval e1) (eval e2)
     where
         divv (NumVal Zero) (NumVal (Succ nv))        = NumVal Zero
         divv (NumVal (Succ nv1)) (NumVal (Succ nv2)) =
-            divvRec $ evaluate (P.Div (P.Sub (num2exp nv1) (num2exp nv2)) (P.Succ (num2exp nv2)))
+            divvRec $ eval (P.Div (P.Sub (num2exp nv1) (num2exp nv2)) (P.Succ (num2exp nv2)))
         divv _ _                                     = error "Evaluation failed @ div"
         divvRec (NumVal nv) = NumVal (Succ nv)
         divvRec _           = error "Evaluation failed @ div"
-evaluate (P.While e1 e2) = while $ evaluate e1
+eval (P.While e1 e2) = while $ eval e1
     where
-        while Vtrue  = evaluate $ P.While (P.Bbool P.Btrue) e2
-        while Vfalse = error "Nothing left when trying to evaluate while"
+        while Vtrue  = eval $ P.While (P.Bbool P.Btrue) e2
+        while Vfalse = error "Nothing left when trying to eval while"
         while _      = error "Evaluation failed @ while"
 
--- Grmbl, we need to be able to throw an Exp back at evaluate
+-- Grmbl, we need to be able to throw an Exp back at eval
 val2exp :: Value -> P.Exp
 val2exp Vtrue = P.Bbool P.Btrue
 val2exp Vfalse = P.Bbool P.Bfalse
