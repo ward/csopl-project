@@ -41,6 +41,9 @@ getType (P.Add e1 e2) = getTypeArithmetic e1 e2
 getType (P.Mult e1 e2) = getTypeArithmetic e1 e2
 getType (P.Sub e1 e2) = getTypeArithmetic e1 e2
 getType (P.Div e1 e2) = getTypeArithmetic e1 e2
+getType (P.While c body)
+    | getType c == Bool = getType body
+    | otherwise = BadlyTyped
 getTypeArithmetic e1 e2
     | getType e1 == Nat && getType e2 == Nat = Nat
     | otherwise = BadlyTyped
@@ -89,6 +92,10 @@ evaluate (P.Div e1 e2) = case (evaluate e1, evaluate e2) of
         NumVal nv -> NumVal (Succ nv)
         otherwise -> error "Evaluation failed @ div"
     otherwise -> error "Evaluation failed @ div"
+evaluate (P.While e1 e2) =  case evaluate e1 of
+    Vtrue -> evaluate $ P.While (P.Bbool P.Btrue) e2
+    Vfalse -> error "Nothing left when trying to evaluate while"
+    otherwise -> error "Evaluation failed @ while"
 
 -- Grmbl, we need to be able to throw an Exp back at evaluate
 val2exp :: Value -> P.Exp

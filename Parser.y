@@ -27,6 +27,7 @@ import Data.Char
     mult { TokenMult }
     sub { TokenSub }
     div { TokenDiv }
+    while { TokenWhile }
 
 %%
 
@@ -42,6 +43,7 @@ Exp
     | mult Exp Exp { Mult $2 $3 }
     | sub Exp Exp { Sub $2 $3 }
     | div Exp Exp { Div $2 $3 }
+    | while Exp Exp { While $2 $3 }
 
 Bbool
     : false { Bfalse }
@@ -62,6 +64,7 @@ data Exp
     | Mult Exp Exp
     | Sub Exp Exp
     | Div Exp Exp
+    | While Exp Exp
         deriving (Show)
 
 data Bbool
@@ -85,6 +88,7 @@ data Token
     | TokenMult
     | TokenSub
     | TokenDiv
+    | TokenWhile
         deriving (Show)
 
 
@@ -109,5 +113,6 @@ lexer cs =
         ("mult", rest) -> TokenMult : lexer rest
         ("sub", rest) -> TokenSub : lexer rest
         ("div", rest) -> TokenDiv : lexer rest
+        ("while", rest) -> TokenWhile : lexer rest
 
 }
