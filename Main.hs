@@ -72,30 +72,35 @@ evaluate (P.If c t f) = eif $ evaluate c
         eif Vtrue  = evaluate t
         eif Vfalse = evaluate f
         eif _      = error "Evaluation failed @ if"
-evaluate (P.Add e1 e2) = case (evaluate e1, evaluate e2) of
-    (NumVal _, NumVal Zero) -> evaluate e1
-    (NumVal nv1, NumVal (Succ ev2)) -> case evaluate (P.Add (num2exp nv1) (num2exp ev2)) of
-        NumVal nv -> NumVal $ Succ nv
-        otherwise -> error "Evaluation failed @ add"
-    otherwise -> error "Evaluation failed @ add"
-evaluate (P.Mult e1 e2) = case (evaluate e1, evaluate e2) of
-    (NumVal _, NumVal Zero) -> NumVal Zero
-    (NumVal ev1, NumVal (Succ ev2)) -> case evaluate (P.Mult (num2exp ev1) (num2exp ev2)) of
-        NumVal nv -> evaluate $ P.Add (num2exp ev1) (num2exp nv)
-        otherwise -> error "Evaluation failed @ mult"
-    otherwise -> error "Evaluation failed @ mult"
-evaluate (P.Sub e1 e2) = case (evaluate e1, evaluate e2) of
-    (NumVal _, NumVal Zero) -> evaluate e1
-    (NumVal Zero, NumVal _) -> NumVal Zero
-    (NumVal (Succ nv1), NumVal (Succ nv2)) -> evaluate $ P.Sub (num2exp nv1) (num2exp nv2)
-    otherwise -> error "Evaluation failed @ sub"
--- Only gives exactly what you expect if there is no remainder
-evaluate (P.Div e1 e2) = case (evaluate e1, evaluate e2) of
-    (NumVal Zero, NumVal (Succ nv)) -> NumVal Zero
-    (NumVal (Succ nv1), NumVal (Succ nv2)) -> case evaluate (P.Div (P.Sub (num2exp nv1) (num2exp nv2)) (P.Succ (num2exp nv2))) of
-        NumVal nv -> NumVal (Succ nv)
-        otherwise -> error "Evaluation failed @ div"
-    otherwise -> error "Evaluation failed @ div"
+evaluate (P.Add e1 e2) = add (evaluate e1) (evaluate e2)
+    where
+        add nv@(NumVal _) (NumVal Zero)      = nv
+        add (NumVal nv1) (NumVal (Succ nv2)) = addRec $ evaluate (P.Add (num2exp nv1) (num2exp nv2))
+        add _ _                              = error "Evaluation failed @ add"
+        addRec (NumVal nv) = NumVal $ Succ nv
+        addRec _           = error "Evaluation failed @ add"
+evaluate (P.Mult e1 e2) = mult (evaluate e1) (evaluate e2)
+    where
+        mult (NumVal _) (NumVal Zero)         = NumVal Zero
+        mult (NumVal nv1) (NumVal (Succ nv2)) = multRec nv1 (evaluate (P.Mult (num2exp nv1) (num2exp nv2)))
+        mult _ _                              = error "Evaluation failed @ mult"
+        multRec nv1 (NumVal nv2) = evaluate $ P.Add (num2exp nv1) (num2exp nv2)
+        multRec _ _              = error "Evaluation failed @ mult"
+evaluate (P.Sub e1 e2) = sub (evaluate e1) (evaluate e2)
+    where
+        sub nv@(NumVal _) (NumVal Zero)             = nv
+        sub (NumVal Zero) (NumVal (Succ _))         = NumVal Zero
+        sub (NumVal (Succ nv1)) (NumVal (Succ nv2)) = evaluate $ P.Sub (num2exp nv1) (num2exp nv2)
+        sub _ _                                     = error "Evaluation failed @ sub"
+-- Only gives exactly what you expect *if* there is no remainder
+evaluate (P.Div e1 e2) = divv (evaluate e1) (evaluate e2)
+    where
+        divv (NumVal Zero) (NumVal (Succ nv))        = NumVal Zero
+        divv (NumVal (Succ nv1)) (NumVal (Succ nv2)) =
+            divvRec $ evaluate (P.Div (P.Sub (num2exp nv1) (num2exp nv2)) (P.Succ (num2exp nv2)))
+        divv _ _                                     = error "Evaluation failed @ div"
+        divvRec (NumVal nv) = NumVal (Succ nv)
+        divvRec _           = error "Evaluation failed @ div"
 evaluate (P.While e1 e2) = while $ evaluate e1
     where
         while Vtrue  = evaluate $ P.While (P.Bbool P.Btrue) e2
