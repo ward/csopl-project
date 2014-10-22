@@ -1,7 +1,6 @@
 module Main where
 
 import qualified Parser as P
---import Debug.Trace
 
 data Type = Bool | Nat | BadlyTyped
     deriving (Show, Eq)
@@ -52,26 +51,30 @@ getTypeArithmetic e1 e2
 evaluate :: P.Exp -> Value
 evaluate (P.Bbool P.Btrue) = Vtrue
 evaluate (P.Bbool P.Bfalse) = Vfalse
-evaluate (P.Zero) = NumVal Zero
-evaluate (P.Iszero e) = case evaluate e of
-    NumVal Zero -> Vtrue
-    NumVal (Succ _) -> Vfalse
-    otherwise -> error "Evaluation failed @ iszero"
-evaluate (P.Succ e) = case evaluate e of
-    NumVal Zero -> NumVal $ Succ Zero
-    NumVal (Succ ev1) -> NumVal $ Succ (Succ ev1)
-    otherwise -> error "Evaluation failed @ succ"
-evaluate (P.Pred e) = case evaluate e of
-    NumVal Zero -> NumVal Zero
-    NumVal (Succ ev) -> NumVal ev
-    otherwise -> error "Evaluation failed @ pred"
-evaluate (P.If c t f) = case evaluate c of
-    Vtrue -> evaluate t
-    Vfalse -> evaluate f
-    otherwise -> error "Evaluation failed @ if"
+evaluate P.Zero = NumVal Zero
+evaluate (P.Iszero e) = iszero $ evaluate e
+    where
+        iszero (NumVal Zero)     = Vtrue
+        iszero (NumVal (Succ _)) = Vfalse
+        iszero _                 = error "Evaluation failed @ iszero"
+-- Slightly stricter than the actual evaluation rules
+evaluate (P.Succ e) = succ $ evaluate e
+    where
+        succ (NumVal nv) = NumVal $ Succ nv
+        succ _           = error "Evaluation failed @ succ"
+evaluate (P.Pred e) = pred $ evaluate e
+    where
+        pred (NumVal Zero)      = NumVal Zero
+        pred (NumVal (Succ nv)) = NumVal nv
+        pred _                  = error "Evaluation failed @ pred"
+evaluate (P.If c t f) = eif $ evaluate c
+    where
+        eif Vtrue  = evaluate t
+        eif Vfalse = evaluate f
+        eif _      = error "Evaluation failed @ if"
 evaluate (P.Add e1 e2) = case (evaluate e1, evaluate e2) of
     (NumVal _, NumVal Zero) -> evaluate e1
-    (NumVal nv1, (NumVal (Succ ev2))) -> case evaluate (P.Add (num2exp nv1) (num2exp ev2)) of
+    (NumVal nv1, NumVal (Succ ev2)) -> case evaluate (P.Add (num2exp nv1) (num2exp ev2)) of
         NumVal nv -> NumVal $ Succ nv
         otherwise -> error "Evaluation failed @ add"
     otherwise -> error "Evaluation failed @ add"
@@ -86,16 +89,18 @@ evaluate (P.Sub e1 e2) = case (evaluate e1, evaluate e2) of
     (NumVal Zero, NumVal _) -> NumVal Zero
     (NumVal (Succ nv1), NumVal (Succ nv2)) -> evaluate $ P.Sub (num2exp nv1) (num2exp nv2)
     otherwise -> error "Evaluation failed @ sub"
+-- Only gives exactly what you expect if there is no remainder
 evaluate (P.Div e1 e2) = case (evaluate e1, evaluate e2) of
     (NumVal Zero, NumVal (Succ nv)) -> NumVal Zero
     (NumVal (Succ nv1), NumVal (Succ nv2)) -> case evaluate (P.Div (P.Sub (num2exp nv1) (num2exp nv2)) (P.Succ (num2exp nv2))) of
         NumVal nv -> NumVal (Succ nv)
         otherwise -> error "Evaluation failed @ div"
     otherwise -> error "Evaluation failed @ div"
-evaluate (P.While e1 e2) =  case evaluate e1 of
-    Vtrue -> evaluate $ P.While (P.Bbool P.Btrue) e2
-    Vfalse -> error "Nothing left when trying to evaluate while"
-    otherwise -> error "Evaluation failed @ while"
+evaluate (P.While e1 e2) = while $ evaluate e1
+    where
+        while Vtrue  = evaluate $ P.While (P.Bbool P.Btrue) e2
+        while Vfalse = error "Nothing left when trying to evaluate while"
+        while _      = error "Evaluation failed @ while"
 
 -- Grmbl, we need to be able to throw an Exp back at evaluate
 val2exp :: Value -> P.Exp
