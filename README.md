@@ -7,7 +7,7 @@ Languages by B. C. Pierce, with the addition of some language constructs.
 
 ## Technology
 
-Versions mentioned are those used during writing.
+Versions mentioned are those used during development.
 
 * [Haskell](http://www.haskell.org/haskellwiki/Haskell), `ghc` version 7.6.3
 * [Happy - Parser generator for Haskell](http://hackage.haskell.org/package/happy), version 1.19.0
@@ -49,7 +49,7 @@ return value. (yes, I realize this isn't very Haskell-y)
 
 The evaluator is also defined in `Main.hs`, under the name `eval`. Before
 evaluating an expression, it evaluates its terms as needed - in accordance with
-the rules as described in the book. After this, pattern matching happens to be
+the rules as described in the book. After this, pattern matching is used to be
 able to apply the correct rule.
 
 Note that a function was added to convert a `Value` (that is, something at the
@@ -73,3 +73,16 @@ Output of each of these three steps is written to standard output.
 ## Compiling the code
 
 A `Makefile` is provided, so simply run `make`.
+
+## Running the code
+
+`Main` reads from the standard input, so to test something of your liking you
+have some options (non-exhaustive list)
+
+1. Run `./Main`, enter what you want parsed, press `Enter`, then `CTRL+D` to end
+   your input.
+2. Run `./Main <<< "your input"`.
+3. Run `echo "your input" | ./Main`.
+
+You can also run `test.sh`, which will run every expression in `test_input.txt`
+one after the other.
