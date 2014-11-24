@@ -161,11 +161,13 @@ eval (P.App e1 e2) = app (eval e1) (eval e2)
     where
         app :: Value -> Value -> Value
         app (VLambda (P.LambdaVar (P.Var varname) _) body) arg = eval $ substitute varname (val2exp arg) body
+        app _ _ = error "Evaluation failed @ app"
 
 -- Do we want to move this to the parser file?
 substitute :: String -> P.Exp -> P.Exp -> P.Exp
 substitute s arg (P.VarUsage (P.Var s2))
     | s == s2 = arg
+    | otherwise = P.VarUsage $ P.Var s2
 substitute s arg l@(P.Lambda v@(P.LambdaVar (P.Var s2) t) b)
     | s == s2 = l
     | otherwise = P.Lambda v $ substitute s arg b
@@ -181,6 +183,7 @@ substitute s arg (P.Sub e1 e2) = P.Sub (substitute s arg e1) (substitute s arg e
 substitute s arg (P.Div e1 e2) = P.Div (substitute s arg e1) (substitute s arg e2)
 substitute s arg (P.While e1 e2) = P.While (substitute s arg e1) (substitute s arg e2)
 substitute s arg (P.App e1 e2) = P.App (substitute s arg e1) (substitute s arg e2)
+--substitute s arg stuff = error $ "s: " ++ show s ++ " arg: " ++ show arg ++ " stuff: " ++ show stuff
 
 -- Grmbl, we need to be able to throw an Exp back at eval
 val2exp :: Value -> P.Exp

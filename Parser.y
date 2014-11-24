@@ -18,6 +18,8 @@ import Data.Char
 %tokentype { Token }
 %error { parseError }
 
+%right '→'
+
 %token
     true { TokenTrue }
     false { TokenFalse }
@@ -30,11 +32,14 @@ import Data.Char
     iszero { TokenIszero }
     '(' { TokenOpenBracket }
     ')' { TokenCloseBracket }
+    '[' { TokenOpenSqBracket }
+    ']' { TokenCloseSqBracket }
     add { TokenAdd }
     mult { TokenMult }
     sub { TokenSub }
     div { TokenDiv }
     while { TokenWhile }
+    app { TokenApp }
     'λ' { TokenLambda }
     ':' { TokenColon }
     '.' { TokenDot }
@@ -57,9 +62,9 @@ Exp
     | sub Exp Exp { Sub $2 $3 }
     | div Exp Exp { Div $2 $3 }
     | while Exp Exp { While $2 $3 }
-    | 'λ' LambdaVar '.' Exp { Lambda $2 $4 }
+    | app Exp Exp { App $2 $3 }
+    | '[' 'λ' LambdaVar '.' Exp ']' { Lambda $3 $5 }
     | Variable { VarUsage $1 }
-    | Exp Exp { App $1 $2 }
 
 Bbool
     : false { Bfalse }
@@ -70,8 +75,8 @@ LambdaVar
 
 Type
     : vartype { Type $1 }
-    | '(' Type ')' { $2 }
     | Type '→' Type { Arrow $1 $3 }
+    | '(' Type ')' { $2 }
 
 Variable
     : var { Var $1 }
@@ -127,11 +132,14 @@ data Token
     | TokenIszero
     | TokenOpenBracket
     | TokenCloseBracket
+    | TokenOpenSqBracket
+    | TokenCloseSqBracket
     | TokenAdd
     | TokenMult
     | TokenSub
     | TokenDiv
     | TokenWhile
+    | TokenApp
     | TokenLambda
     | TokenColon
     | TokenDot
@@ -148,6 +156,8 @@ lexer (c:cs)
 lexer ('0':cs) = TokenZero : lexer cs
 lexer ('(':cs) = TokenOpenBracket : lexer cs
 lexer (')':cs) = TokenCloseBracket : lexer cs
+lexer ('[':cs) = TokenOpenSqBracket : lexer cs
+lexer (']':cs) = TokenCloseSqBracket : lexer cs
 lexer ('λ':cs) = TokenLambda : lexer cs
 -- To distinguish between free text representing a variable and that
 -- representing types, this function handles everything for the type.
@@ -178,6 +188,7 @@ lexer cs =
         ("sub", rest) -> TokenSub : lexer rest
         ("div", rest) -> TokenDiv : lexer rest
         ("while", rest) -> TokenWhile : lexer rest
+        ("app", rest) -> TokenApp : lexer rest
         (var, rest) -> TokenVar var : lexer rest
 
 }
