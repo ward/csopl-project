@@ -1,9 +1,17 @@
 module Main where
 
 import qualified Parser as P
+import qualified Data.Map as Map
 
-data Type = Bool | Nat | BadlyTyped
-    deriving (Show, Eq)
+data Type
+    = Bool
+    | Nat
+    | Arrow Type Type
+    | BadlyTyped
+        deriving (Show, Eq)
+
+-- type synonym
+type Env = Map.Map String Type
 
 data Value = Vtrue | Vfalse | NumVal NumValue
     deriving (Show, Eq)
@@ -18,35 +26,75 @@ main = do
     putStr "Parsed:    "
     print parsed
     putStr "Type:      "
-    print . getType $ parsed
+    print . findType $ parsed
     putStr "Evaluated: "
     print . eval $ parsed
 
-getType :: P.Exp -> Type
-getType (P.Bbool P.Btrue) = Bool
-getType (P.Bbool P.Bfalse) = Bool
-getType (P.If c t f)
-    | getType c == Bool && getType t == getType f = getType t
+findType :: P.Exp -> Type
+findType exp = getType Map.empty exp
+
+getType :: Env -> P.Exp -> Type
+getType _ (P.Bbool P.Btrue) = Bool
+getType _ (P.Bbool P.Bfalse) = Bool
+getType env (P.If c t f)
+    | getType env c == Bool && getType env t == getType env f = getType env t
     | otherwise = BadlyTyped
-getType P.Zero = Nat
-getType (P.Succ e)
-    | getType e == Nat = Nat
+getType _ P.Zero = Nat
+getType env (P.Succ e)
+    | getType env e == Nat = Nat
     | otherwise = BadlyTyped
-getType (P.Pred e)
-    | getType e == Nat = Nat
+getType env (P.Pred e)
+    | getType env e == Nat = Nat
     | otherwise = BadlyTyped
-getType (P.Iszero e)
-    | getType e == Nat = Bool
+getType env (P.Iszero e)
+    | getType env e == Nat = Bool
     | otherwise = BadlyTyped
-getType (P.Add e1 e2) = getTypeArithmetic e1 e2
-getType (P.Mult e1 e2) = getTypeArithmetic e1 e2
-getType (P.Sub e1 e2) = getTypeArithmetic e1 e2
-getType (P.Div e1 e2) = getTypeArithmetic e1 e2
-getType (P.While c body)
-    | getType c == Bool = getType body
+getType env (P.Add e1 e2) = getTypeArithmetic env e1 e2
+getType env (P.Mult e1 e2) = getTypeArithmetic env e1 e2
+getType env (P.Sub e1 e2) = getTypeArithmetic env e1 e2
+getType env (P.Div e1 e2) = getTypeArithmetic env e1 e2
+getType env (P.While c body)
+    | getType env c == Bool = getType env body
     | otherwise = BadlyTyped
-getTypeArithmetic e1 e2
-    | getType e1 == Nat && getType e2 == Nat = Nat
+getType env (P.VarUsage (P.Var s))
+    | Map.member s env = env Map.! s
+    | otherwise = BadlyTyped
+getType env (P.App e1 e2)
+    | getFirst (getType env e1) == getType env e2
+        && getType env e2 /= BadlyTyped
+        = getSecond $ getType env e1
+    | otherwise = BadlyTyped
+        where
+            getFirst :: Type -> Type
+            getFirst (Arrow t1 t2) = t1
+            getFirst _ = BadlyTyped
+            getSecond :: Type -> Type
+            getSecond (Arrow t1 t2) = t2
+            getSecond _ = BadlyTyped
+getType env (P.Lambda (P.LambdaVar (P.Var var) t) exp)
+    | vartype /= BadlyTyped && bodytype /= BadlyTyped = Arrow vartype bodytype
+    | otherwise = BadlyTyped
+        where
+            bodytype :: Type
+            bodytype = getType (Map.insert var vartype env) exp
+            vartype :: Type
+            vartype = readTypeDeclaration t
+
+-- The type declaration for the parameter of a lambda expression requires some
+-- special handling.
+readTypeDeclaration :: P.Type -> Type
+readTypeDeclaration (P.Type s)
+    | s == "Nat" = Nat
+    | s == "Bool" = Bool
+readTypeDeclaration (P.Arrow t1 t2)
+    | readTypeDeclaration t1 /= BadlyTyped
+        && readTypeDeclaration t2 /= BadlyTyped
+        = Arrow (readTypeDeclaration t1) (readTypeDeclaration t2)
+readTypeDeclaration _ = BadlyTyped
+
+getTypeArithmetic :: Env -> P.Exp -> P.Exp -> Type
+getTypeArithmetic env e1 e2
+    | getType env e1 == Nat && getType env e2 == Nat = Nat
     | otherwise = BadlyTyped
 
 

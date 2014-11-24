@@ -1,5 +1,12 @@
 {
-module Parser (calc, lexer, Exp(..), Bbool(..)) where
+module Parser (
+    calc,
+    lexer,
+    Exp(..),
+    Bbool(..),
+    LambdaVar(..),
+    Type(..),
+    Variable(..)) where
 
 -- EDIT THE .y FILE, NOT THE .hs file
 -- The .hs file is generated using happy
