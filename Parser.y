@@ -95,25 +95,25 @@ data Exp
     | Lambda LambdaVar Exp
     | VarUsage Variable
     | App Exp Exp
-        deriving (Show)
+        deriving (Show, Eq)
 
 data Bbool
     = Bfalse
     | Btrue
-        deriving (Show)
+        deriving (Show, Eq)
 
 data LambdaVar
     = LambdaVar Variable Type
-        deriving (Show)
+        deriving (Show, Eq)
 
 data Type
     = Type String
     | Arrow Type Type
-        deriving (Show)
+        deriving (Show, Eq)
 
 data Variable
     = Var String
-        deriving (Show)
+        deriving (Show, Eq)
 
 data Token
     = TokenTrue

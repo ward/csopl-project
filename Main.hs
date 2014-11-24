@@ -13,7 +13,7 @@ data Type
 -- type synonym
 type Env = Map.Map String Type
 
-data Value = Vtrue | Vfalse | NumVal NumValue
+data Value = Vtrue | Vfalse | NumVal NumValue | VLambda P.LambdaVar P.Exp
     deriving (Show, Eq)
 data NumValue = Zero | Succ NumValue
     deriving (Show, Eq)
@@ -156,11 +156,37 @@ eval (P.While e1 e2) = while $ eval e1
         while Vtrue  = eval $ P.While (P.Bbool P.Btrue) e2
         while Vfalse = error "Nothing left when trying to eval while"
         while _      = error "Evaluation failed @ while"
+eval (P.Lambda var body) = VLambda var body
+eval (P.App e1 e2) = app (eval e1) (eval e2)
+    where
+        app :: Value -> Value -> Value
+        app (VLambda (P.LambdaVar (P.Var varname) _) body) arg = eval $ substitute varname (val2exp arg) body
+
+-- Do we want to move this to the parser file?
+substitute :: String -> P.Exp -> P.Exp -> P.Exp
+substitute s arg (P.VarUsage (P.Var s2))
+    | s == s2 = arg
+substitute s arg l@(P.Lambda v@(P.LambdaVar (P.Var s2) t) b)
+    | s == s2 = l
+    | otherwise = P.Lambda v $ substitute s arg b
+substitute s arg P.Zero = P.Zero
+substitute s arg (P.Bbool b) = P.Bbool b
+substitute s arg (P.If c t f) = P.If (substitute s arg c) (substitute s arg t) (substitute s arg f)
+substitute s arg (P.Iszero e) = P.Iszero $ substitute s arg e
+substitute s arg (P.Succ e) = P.Succ $ substitute s arg e
+substitute s arg (P.Pred e) = P.Pred $ substitute s arg e
+substitute s arg (P.Add e1 e2) = P.Add (substitute s arg e1) (substitute s arg e2)
+substitute s arg (P.Mult e1 e2) = P.Mult (substitute s arg e1) (substitute s arg e2)
+substitute s arg (P.Sub e1 e2) = P.Sub (substitute s arg e1) (substitute s arg e2)
+substitute s arg (P.Div e1 e2) = P.Div (substitute s arg e1) (substitute s arg e2)
+substitute s arg (P.While e1 e2) = P.While (substitute s arg e1) (substitute s arg e2)
+substitute s arg (P.App e1 e2) = P.App (substitute s arg e1) (substitute s arg e2)
 
 -- Grmbl, we need to be able to throw an Exp back at eval
 val2exp :: Value -> P.Exp
 val2exp Vtrue = P.Bbool P.Btrue
 val2exp Vfalse = P.Bbool P.Bfalse
+val2exp (VLambda v b) = P.Lambda v b
 val2exp (NumVal nv) = num2exp nv
 num2exp :: NumValue -> P.Exp
 num2exp Zero = P.Zero
