@@ -28,6 +28,12 @@ import Data.Char
     sub { TokenSub }
     div { TokenDiv }
     while { TokenWhile }
+    'λ' { TokenLambda }
+    ':' { TokenColon }
+    '.' { TokenDot }
+    '→' { TokenArrow }
+    var { TokenVar $$ }
+    vartype { TokenType $$ }
 
 %%
 
@@ -44,10 +50,24 @@ Exp
     | sub Exp Exp { Sub $2 $3 }
     | div Exp Exp { Div $2 $3 }
     | while Exp Exp { While $2 $3 }
+    | 'λ' LambdaVar '.' Exp { Lambda $2 $4 }
+    | Variable { VarUsage $1 }
+    | Exp Exp { App $1 $2 }
 
 Bbool
     : false { Bfalse }
     | true { Btrue }
+
+LambdaVar
+    : Variable ':' Type { LambdaVar $1 $3 }
+
+Type
+    : vartype { Type $1 }
+    | '(' Type ')' { $2 }
+    | Type '→' Type { Arrow $1 $3 }
+
+Variable
+    : var { Var $1 }
 
 {
 parseError :: [Token] -> a
@@ -65,11 +85,27 @@ data Exp
     | Sub Exp Exp
     | Div Exp Exp
     | While Exp Exp
+    | Lambda LambdaVar Exp
+    | VarUsage Variable
+    | App Exp Exp
         deriving (Show)
 
 data Bbool
     = Bfalse
     | Btrue
+        deriving (Show)
+
+data LambdaVar
+    = LambdaVar Variable Type
+        deriving (Show)
+
+data Type
+    = Type String
+    | Arrow Type Type
+        deriving (Show)
+
+data Variable
+    = Var String
         deriving (Show)
 
 data Token
@@ -89,6 +125,12 @@ data Token
     | TokenSub
     | TokenDiv
     | TokenWhile
+    | TokenLambda
+    | TokenColon
+    | TokenDot
+    | TokenArrow
+    | TokenVar String
+    | TokenType String
         deriving (Show)
 
 
@@ -99,6 +141,21 @@ lexer (c:cs)
 lexer ('0':cs) = TokenZero : lexer cs
 lexer ('(':cs) = TokenOpenBracket : lexer cs
 lexer (')':cs) = TokenCloseBracket : lexer cs
+lexer ('λ':cs) = TokenLambda : lexer cs
+-- To distinguish between free text representing a variable and that
+-- representing types, this function handles everything for the type.
+-- Upon encountering a '.', control is back to the lexer.
+lexer (':':cs) = TokenColon : lexerType cs
+  where
+    lexerType :: String -> [Token]
+    lexerType ('(':cs) = TokenOpenBracket : lexerType cs
+    lexerType (')':cs) = TokenCloseBracket : lexerType cs
+    lexerType ('→':cs) = TokenArrow : lexerType cs
+    lexerType ('.':cs) = lexer $ '.':cs
+    lexerType cs =
+      case span isAlpha cs of
+          (var, rest) -> TokenType var : lexerType rest
+lexer ('.':cs) = TokenDot : lexer cs
 lexer cs =
     case span isAlpha cs of
         ("if", rest) -> TokenIf : lexer rest
@@ -114,5 +171,6 @@ lexer cs =
         ("sub", rest) -> TokenSub : lexer rest
         ("div", rest) -> TokenDiv : lexer rest
         ("while", rest) -> TokenWhile : lexer rest
+        (var, rest) -> TokenVar var : lexer rest
 
 }
