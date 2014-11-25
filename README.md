@@ -1,9 +1,16 @@
-# Capita Selecta of Programming Languages: Homework 1
+# Capita Selecta of Programming Languages: Homework
 
-Code for the first assignment of the Capita Selecta of Programming Languages
-course at the Vrije Universiteit Brussel. A simple type checker and evaluator
-for the language as described in Chapter 8 of the book Types and Programming
-Languages by B. C. Pierce, with the addition of some language constructs.
+Code for the assignments of the Capita Selecta of Programming Languages course
+at the Vrije Universiteit Brussel. The first assignment was a simple type
+checker and evaluator for the language described in Chapter 8 of the book Types
+and Programming Languages by B. C. Pierce, with the addition of some language
+constructs. The second assignment asked for the extension of this with the
+simply typed lambda calculus as described in chapter 9. Our personal addition
+to this is the surrounding of lambda expressions with `[` and `]` as well as
+explicitly declaring an application of a lambda by means of `app` to ensure
+there is no ambiguity in parsing an expression. An example to show the reason
+for the square brackets: `λx:Bool→Bool.x true`. The parser cannot know where
+to end the body of the lambda without running the type checker.
 
 ## Technology
 
@@ -33,7 +40,8 @@ regular Haskell file.
 
 ### Type checking
 
-The type checker resides in `Main.hs` under the name `getType`. Following the
+The type checker resides in `Main.hs` under the name `findType`. Though this
+simply immediately calls `getType` with a starting environment. Following the
 rules as described in the book, it finds out the type of an expression by
 recursively finding the types of the subexpressions that are of relevance.
 

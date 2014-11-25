@@ -33,3 +33,11 @@ mult mult mult succ succ 0 succ succ 0 succ succ 0 succ succ 0
 div succ succ 0 succ succ 0
 div mult succ succ succ 0 succ succ 0 succ succ succ 0
 div sub succ succ succ succ succ 0 succ 0 succ succ 0
+[λx:Bool.x]
+[λx:Nat→Nat.app x 0]
+app [λx:Nat→Nat.app x 0] [λx:Nat.succ x]
+app [λx:Nat→Nat.[λy:Nat.app x y]] [λx:Nat.succ x]
+[λx:Bool→Bool→Bool→Bool→Nat.0]
+app [λx:Nat→Nat.[λx:Bool.x]] [λy:Nat.0]
+app [λx:Nat→Nat.[λx:Bool.x]] [λx:Nat.0]
+app [λx:Nat→Nat.app [λx:Bool.x] x] [λx:Nat.0]

@@ -183,7 +183,6 @@ substitute s arg (P.Sub e1 e2) = P.Sub (substitute s arg e1) (substitute s arg e
 substitute s arg (P.Div e1 e2) = P.Div (substitute s arg e1) (substitute s arg e2)
 substitute s arg (P.While e1 e2) = P.While (substitute s arg e1) (substitute s arg e2)
 substitute s arg (P.App e1 e2) = P.App (substitute s arg e1) (substitute s arg e2)
---substitute s arg stuff = error $ "s: " ++ show s ++ " arg: " ++ show arg ++ " stuff: " ++ show stuff
 
 -- Grmbl, we need to be able to throw an Exp back at eval
 val2exp :: Value -> P.Exp
