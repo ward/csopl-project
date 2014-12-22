@@ -8,12 +8,14 @@ data Type
     = Bool
     | Nat
     | Arrow Type Type
+    | Forall P.Variable Kind Type
     | BadlyTyped
         deriving (Eq)
 instance Show Type where
     show Bool = "Bool"
     show Nat = "Nat"
     show (Arrow t1 t2) = "(→ " ++ show t1 ++ " " ++ show t2 ++ ")"
+    show (Forall v k t) = "(∀ " ++ show v ++ " " ++ show k ++ " " ++ show t ++ ")"
     show BadlyTyped = "BadlyTyped"
 
 data Kind
@@ -25,7 +27,8 @@ instance Show Kind where
     show (KindArrow a b) = "(⇒ " ++ show a ++ " " ++ show b ++ ")"
 
 -- type synonym
-type Env = Map.Map String Type
+type TypeEnv = Map.Map String Type
+type KindEnv = Map.Map String Kind
 
 data Value
     = Vtrue
@@ -50,47 +53,47 @@ main = do
     print . eval $ parsed
 
 findType :: P.Exp -> Type
-findType exp = getType Map.empty exp
+findType exp = getType Map.empty Map.empty exp
 
-getType :: Env -> P.Exp -> Type
+getType :: TypeEnv -> KindEnv -> P.Exp -> Type
 -- T-True
-getType _ P.Btrue = Bool
+getType _ _ P.Btrue = Bool
 -- T-False
-getType _ P.Bfalse = Bool
+getType _ _ P.Bfalse = Bool
 -- T-If
-getType env (P.If c t f)
-    | getType env c == Bool && getType env t == getType env f = getType env t
+getType tenv kenv (P.If c t f)
+    | getType tenv kenv c == Bool && getType tenv kenv t == getType tenv kenv f = getType tenv kenv t
     | otherwise = BadlyTyped
 -- T-Zero
-getType _ P.Zero = Nat
+getType _ _ P.Zero = Nat
 -- T-Succ
-getType env (P.Succ e)
-    | getType env e == Nat = Nat
+getType tenv kenv (P.Succ e)
+    | getType tenv kenv e == Nat = Nat
     | otherwise = BadlyTyped
 -- T-Pred
-getType env (P.Pred e)
-    | getType env e == Nat = Nat
+getType tenv kenv (P.Pred e)
+    | getType tenv kenv e == Nat = Nat
     | otherwise = BadlyTyped
 -- T-Iszero
-getType env (P.Iszero e)
-    | getType env e == Nat = Bool
+getType tenv kenv (P.Iszero e)
+    | getType tenv kenv e == Nat = Bool
     | otherwise = BadlyTyped
-getType env (P.Add e1 e2) = getTypeArithmetic env e1 e2
-getType env (P.Mult e1 e2) = getTypeArithmetic env e1 e2
-getType env (P.Sub e1 e2) = getTypeArithmetic env e1 e2
-getType env (P.Div e1 e2) = getTypeArithmetic env e1 e2
---getType env (P.While c body)
---    | getType env c == Bool = getType env body
+getType tenv kenv (P.Add e1 e2) = getTypeArithmetic tenv kenv e1 e2
+getType tenv kenv (P.Mult e1 e2) = getTypeArithmetic tenv kenv e1 e2
+getType tenv kenv (P.Sub e1 e2) = getTypeArithmetic tenv kenv e1 e2
+getType tenv kenv (P.Div e1 e2) = getTypeArithmetic tenv kenv e1 e2
+--getType tenv kenv (P.While c body)
+--    | getType tenv kenv c == Bool = getType tenv kenv body
 --    | otherwise = BadlyTyped
 -- T-Var
-getType env (P.VarUsage (P.Var s))
-    | Map.member s env = env Map.! s
+getType tenv kenv (P.VarUsage (P.Var s))
+    | Map.member s tenv = tenv Map.! s
     | otherwise = BadlyTyped
 -- T-App
-getType env (P.App e1 e2)
-    | getFirst (getType env e1) == getType env e2
-        && getType env e2 /= BadlyTyped
-        = getSecond $ getType env e1
+getType tenv kenv (P.App e1 e2)
+    | getFirst (getType tenv kenv e1) == getType tenv kenv e2
+        && getType tenv kenv e2 /= BadlyTyped
+        = getSecond $ getType tenv kenv e1
     | otherwise = BadlyTyped
         where
             getFirst :: Type -> Type
@@ -100,16 +103,30 @@ getType env (P.App e1 e2)
             getSecond (Arrow t1 t2) = t2
             getSecond _ = BadlyTyped
 -- T-Abs
-getType env (P.Abs (P.Var var) t e)
+getType tenv kenv (P.Abs (P.Var var) t e)
     | vartype /= BadlyTyped
-        && getKind env vartype == Star
+        && getKind tenv kenv vartype == Star
         && bodytype /= BadlyTyped = Arrow vartype bodytype
     | otherwise = BadlyTyped
         where
             bodytype :: Type
-            bodytype = getType (Map.insert var vartype env) e
+            bodytype = getType (Map.insert var vartype tenv) kenv e
             vartype :: Type
             vartype = readTypeDeclaration t
+-- T-TAbs
+getType tenv kenv (P.TypeAbs (P.Var var) k e)
+    | bodytype /= BadlyTyped = Forall (P.Var var) varkind bodytype
+    | otherwise = BadlyTyped
+        where
+            varkind :: Kind
+            varkind = readKindDeclaration k
+            bodytype :: Type
+            bodytype = getType tenv (Map.insert var varkind kenv) e
+
+readKindDeclaration :: P.Kind -> Kind
+readKindDeclaration P.Star = Star
+readKindDeclaration (P.KindArrow k₁ k₂) =
+    KindArrow (readKindDeclaration k₁) (readKindDeclaration k₂)
 
 -- The type declaration for the parameter of a lambda expression requires some
 -- special handling.
@@ -122,17 +139,17 @@ readTypeDeclaration (P.Arrow t1 t2)
         = Arrow (readTypeDeclaration t1) (readTypeDeclaration t2)
 readTypeDeclaration _ = BadlyTyped
 
-getTypeArithmetic :: Env -> P.Exp -> P.Exp -> Type
-getTypeArithmetic env e1 e2
-    | getType env e1 == Nat && getType env e2 == Nat = Nat
+getTypeArithmetic :: TypeEnv -> KindEnv -> P.Exp -> P.Exp -> Type
+getTypeArithmetic tenv kenv e1 e2
+    | getType tenv kenv e1 == Nat && getType tenv kenv e2 == Nat = Nat
     | otherwise = BadlyTyped
 
-getKind :: Env -> Type -> Kind
-getKind _ Nat = Star
-getKind _ Bool = Star
+getKind :: TypeEnv -> KindEnv -> Type -> Kind
+getKind _ _ Nat = Star
+getKind _ _ Bool = Star
 -- K-Arrow
-getKind env (Arrow t1 t2)
-    | getKind env t1 == Star && getKind env t2 == Star = Star
+getKind tenv kenv (Arrow t1 t2)
+    | getKind tenv kenv t1 == Star && getKind tenv kenv t2 == Star = Star
 
 --------------------------------------------------------------------------------
 --------- EVALUATION -----------------------------------------------------------
