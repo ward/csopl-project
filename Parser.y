@@ -79,7 +79,7 @@ DoType
     | Type Type { OpApp $1 $2 }
 
 Kind
-    : '*' { Kind }
+    : '*' { Star }
     | '(' '⇒' Kind Kind ')' { KindArrow $3 $4 }
 
 Variable
@@ -119,7 +119,7 @@ data Type
         deriving (Show, Eq)
 
 data Kind
-    = Kind
+    = Star
     | KindArrow Kind Kind
         deriving (Show, Eq)
 

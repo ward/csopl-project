@@ -8,7 +8,20 @@ data Type
     | Nat
     | Arrow Type Type
     | BadlyTyped
-        deriving (Show, Eq)
+        deriving (Eq)
+instance Show Type where
+    show Bool = "Bool"
+    show Nat = "Nat"
+    show (Arrow t1 t2) = "(→ " ++ show t1 ++ " " ++ show t2 ++ ")"
+    show BadlyTyped = "BadlyTyped"
+
+data Kind
+    = Star
+    | KindArrow Kind Kind
+        deriving (Eq)
+instance Show Kind where
+    show Star = "*"
+    show (KindArrow a b) = "(⇒ " ++ show a ++ " " ++ show b ++ ")"
 
 -- type synonym
 type Env = Map.Map String Type
@@ -34,18 +47,25 @@ findType :: P.Exp -> Type
 findType exp = getType Map.empty exp
 
 getType :: Env -> P.Exp -> Type
+-- T-True
 getType _ P.Btrue = Bool
+-- T-False
 getType _ P.Bfalse = Bool
+-- T-If
 getType env (P.If c t f)
     | getType env c == Bool && getType env t == getType env f = getType env t
     | otherwise = BadlyTyped
+-- T-Zero
 getType _ P.Zero = Nat
+-- T-Succ
 getType env (P.Succ e)
     | getType env e == Nat = Nat
     | otherwise = BadlyTyped
+-- T-Pred
 getType env (P.Pred e)
     | getType env e == Nat = Nat
     | otherwise = BadlyTyped
+-- T-Iszero
 getType env (P.Iszero e)
     | getType env e == Nat = Bool
     | otherwise = BadlyTyped
@@ -56,9 +76,11 @@ getType env (P.Div e1 e2) = getTypeArithmetic env e1 e2
 --getType env (P.While c body)
 --    | getType env c == Bool = getType env body
 --    | otherwise = BadlyTyped
+-- T-Var
 getType env (P.VarUsage (P.Var s))
     | Map.member s env = env Map.! s
     | otherwise = BadlyTyped
+-- T-App
 getType env (P.App e1 e2)
     | getFirst (getType env e1) == getType env e2
         && getType env e2 /= BadlyTyped
@@ -71,6 +93,7 @@ getType env (P.App e1 e2)
             getSecond :: Type -> Type
             getSecond (Arrow t1 t2) = t2
             getSecond _ = BadlyTyped
+-- T-Abs
 getType env (P.Lambda (P.Var var) t exp)
     | vartype /= BadlyTyped && bodytype /= BadlyTyped = Arrow vartype bodytype
     | otherwise = BadlyTyped
