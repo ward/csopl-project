@@ -34,8 +34,8 @@ findType :: P.Exp -> Type
 findType exp = getType Map.empty exp
 
 getType :: Env -> P.Exp -> Type
-getType _ (P.Bbool P.Btrue) = Bool
-getType _ (P.Bbool P.Bfalse) = Bool
+getType _ P.Btrue = Bool
+getType _ P.Bfalse = Bool
 getType env (P.If c t f)
     | getType env c == Bool && getType env t == getType env f = getType env t
     | otherwise = BadlyTyped
@@ -53,9 +53,9 @@ getType env (P.Add e1 e2) = getTypeArithmetic env e1 e2
 getType env (P.Mult e1 e2) = getTypeArithmetic env e1 e2
 getType env (P.Sub e1 e2) = getTypeArithmetic env e1 e2
 getType env (P.Div e1 e2) = getTypeArithmetic env e1 e2
-getType env (P.While c body)
-    | getType env c == Bool = getType env body
-    | otherwise = BadlyTyped
+--getType env (P.While c body)
+--    | getType env c == Bool = getType env body
+--    | otherwise = BadlyTyped
 getType env (P.VarUsage (P.Var s))
     | Map.member s env = env Map.! s
     | otherwise = BadlyTyped
@@ -71,7 +71,7 @@ getType env (P.App e1 e2)
             getSecond :: Type -> Type
             getSecond (Arrow t1 t2) = t2
             getSecond _ = BadlyTyped
-getType env (P.Lambda (P.LambdaVar (P.Var var) t) exp)
+getType env (P.Lambda (P.Var var) t exp)
     | vartype /= BadlyTyped && bodytype /= BadlyTyped = Arrow vartype bodytype
     | otherwise = BadlyTyped
         where
@@ -83,9 +83,8 @@ getType env (P.Lambda (P.LambdaVar (P.Var var) t) exp)
 -- The type declaration for the parameter of a lambda expression requires some
 -- special handling.
 readTypeDeclaration :: P.Type -> Type
-readTypeDeclaration (P.Type s)
-    | s == "Nat" = Nat
-    | s == "Bool" = Bool
+readTypeDeclaration P.Tint = Nat
+readTypeDeclaration P.Tbool = Bool
 readTypeDeclaration (P.Arrow t1 t2)
     | readTypeDeclaration t1 /= BadlyTyped
         && readTypeDeclaration t2 /= BadlyTyped
