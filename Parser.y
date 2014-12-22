@@ -4,6 +4,7 @@ module Parser (
     lexer,
     Exp(..),
     Type(..),
+    Kind(..),
     Variable(..)) where
 
 -- EDIT THE .y FILE, NOT THE .hs file

@@ -2,6 +2,7 @@ module Main where
 
 import qualified Parser as P
 import qualified Data.Map as Map
+import Debug.Trace
 
 data Type
     = Bool
@@ -26,8 +27,13 @@ instance Show Kind where
 -- type synonym
 type Env = Map.Map String Type
 
-data Value = Vtrue | Vfalse | NumVal NumValue | VLambda P.Variable P.Type P.Exp
-    deriving (Show, Eq)
+data Value
+    = Vtrue
+    | Vfalse
+    | NumVal NumValue
+    | VAbs P.Variable P.Type P.Exp
+    | VTypeAbs P.Variable P.Kind P.Exp
+        deriving (Show, Eq)
 data NumValue = Zero | Succ NumValue
     deriving (Show, Eq)
 
@@ -94,14 +100,14 @@ getType env (P.App e1 e2)
             getSecond (Arrow t1 t2) = t2
             getSecond _ = BadlyTyped
 -- T-Abs
-getType env (P.Abs (P.Var var) t exp)
+getType env (P.Abs (P.Var var) t e)
     | vartype /= BadlyTyped
         && getKind env vartype == Star
         && bodytype /= BadlyTyped = Arrow vartype bodytype
     | otherwise = BadlyTyped
         where
             bodytype :: Type
-            bodytype = getType (Map.insert var vartype env) exp
+            bodytype = getType (Map.insert var vartype env) e
             vartype :: Type
             vartype = readTypeDeclaration t
 
@@ -128,26 +134,34 @@ getKind _ Bool = Star
 getKind env (Arrow t1 t2)
     | getKind env t1 == Star && getKind env t2 == Star = Star
 
+--------------------------------------------------------------------------------
+--------- EVALUATION -----------------------------------------------------------
+--------------------------------------------------------------------------------
 
 eval :: P.Exp -> Value
 eval P.Btrue = Vtrue
 eval P.Bfalse = Vfalse
 eval P.Zero = NumVal Zero
+-- E-Iszero, E-IszeroZero, E-IszeroSucc
 eval (P.Iszero e) = iszero $ eval e
     where
         iszero (NumVal Zero)     = Vtrue
         iszero (NumVal (Succ _)) = Vfalse
         iszero _                 = error "Evaluation failed @ iszero"
--- Slightly stricter than the actual evaluation rules
+-- E-Succ
+-- Slightly stricter than the actual evaluation rule (only allow the
+-- subterm to be a numerical value)
 eval (P.Succ e) = succ $ eval e
     where
         succ (NumVal nv) = NumVal $ Succ nv
         succ _           = error "Evaluation failed @ succ"
+-- E-Pred, E-PredZero, E-PredSucc
 eval (P.Pred e) = pred $ eval e
     where
         pred (NumVal Zero)      = NumVal Zero
         pred (NumVal (Succ nv)) = NumVal nv
         pred _                  = error "Evaluation failed @ pred"
+-- E-If, E-IfTrue, E-IfFalse
 eval (P.If c t f) = eif $ eval c
     where
         eif Vtrue  = eval t
@@ -187,14 +201,25 @@ eval (P.Div e1 e2) = divv (eval e1) (eval e2)
 --        while Vtrue  = eval $ P.While (P.Bbool P.Btrue) e2
 --        while Vfalse = error "Nothing left when trying to eval while"
 --        while _      = error "Evaluation failed @ while"
-eval (P.Abs var t body) = VLambda var t body
+eval (P.Abs var t body) = VAbs var t body
+-- E-App1, E-App2, EAppAbs
 eval (P.App e1 e2) = app (eval e1) (eval e2)
     where
         app :: Value -> Value -> Value
-        app (VLambda (P.Var varname) t body) arg = eval $ substitute varname (val2exp arg) body
+        app (VAbs (P.Var varname) t body) arg = eval $ substitute varname (val2exp arg) body
         app _ _ = error "Evaluation failed @ app"
+eval (P.TypeAbs var kind body) = VTypeAbs var kind body
+-- E-TApp, ETappTabs
+eval (P.TypeApp e t) = app (eval e) t
+    where
+        app :: Value -> P.Type -> Value
+        app (VTypeAbs (P.Var varname) kind body) arg = eval $ substituteT varname arg body
+        app _ _ = error "Evaluation failed @ typeapp"
 
--- Do we want to move this to the parser file?
+--------------------------------------------------------------------------------
+--------- SUBSTITUTION ---------------------------------------------------------
+-- Do we want to move this to the parser file? ---------------------------------
+--------------------------------------------------------------------------------
 substitute :: String -> P.Exp -> P.Exp -> P.Exp
 substitute s arg (P.VarUsage (P.Var s2))
     | s == s2 = arg
@@ -216,11 +241,50 @@ substitute s arg (P.Div e1 e2) = P.Div (substitute s arg e1) (substitute s arg e
 --substitute s arg (P.While e1 e2) = P.While (substitute s arg e1) (substitute s arg e2)
 substitute s arg (P.App e1 e2) = P.App (substitute s arg e1) (substitute s arg e2)
 
+substituteT :: String -> P.Type -> P.Exp -> P.Exp
+substituteT s arg (P.VarUsage (P.Var s2))
+    | s == s2 = error "Encountered variable representing a type where I shouldn't"
+    | otherwise = P.VarUsage $ P.Var s2
+substituteT s arg abstraction@(P.Abs v@(P.Var s2) t b)
+    | s == s2 = abstraction
+    | otherwise = P.Abs v (substituteType s arg t) (substituteT s arg b)
+substituteT s arg (P.TypeApp e t) = P.TypeApp (substituteT s arg e) (substituteType s arg t)
+substituteT s arg P.Zero = P.Zero
+substituteT s arg P.Btrue = P.Btrue
+substituteT s arg P.Bfalse = P.Bfalse
+substituteT s arg (P.If c t f) = P.If (substituteT s arg c) (substituteT s arg t) (substituteT s arg f)
+substituteT s arg (P.Iszero e) = P.Iszero $ substituteT s arg e
+substituteT s arg (P.Succ e) = P.Succ $ substituteT s arg e
+substituteT s arg (P.Pred e) = P.Pred $ substituteT s arg e
+substituteT s arg (P.Add e1 e2) = P.Add (substituteT s arg e1) (substituteT s arg e2)
+substituteT s arg (P.Mult e1 e2) = P.Mult (substituteT s arg e1) (substituteT s arg e2)
+substituteT s arg (P.Sub e1 e2) = P.Sub (substituteT s arg e1) (substituteT s arg e2)
+substituteT s arg (P.Div e1 e2) = P.Div (substituteT s arg e1) (substituteT s arg e2)
+--substituteT s arg (P.While e1 e2) = P.While (substitute s arg e1) (substituteT s arg e2)
+substituteT s arg (P.App e1 e2) = P.App (substituteT s arg e1) (substituteT s arg e2)
+
+substituteType :: String -> P.Type -> P.Type -> P.Type
+substituteType s arg tvu@(P.TypeVarUsage (P.Var var))
+    | s == var = arg
+    | otherwise = tvu
+substituteType s arg opabs@(P.OpAbs (P.Var var) kind t)
+    | s == var = opabs
+    | otherwise = P.OpAbs (P.Var var) kind $ substituteType s arg t
+substituteType s arg fa@(P.Forall (P.Var var) kind t)
+    | s == var = trace "TODO should rename variables" fa -- TODO
+    | otherwise = P.Forall (P.Var var) kind (substituteType s arg t)
+substituteType s arg P.Tint = P.Tint
+substituteType s arg P.Tbool = P.Tbool
+substituteType s arg (P.Arrow t1 t2)
+    = P.Arrow (substituteType s arg t1) (substituteType s arg t2)
+substituteType s arg (P.OpApp t1 t2)
+    = P.OpApp (substituteType s arg t1) (substituteType s arg t2)
+
 -- Grmbl, we need to be able to throw an Exp back at eval
 val2exp :: Value -> P.Exp
 val2exp Vtrue = P.Btrue
 val2exp Vfalse = P.Bfalse
-val2exp (VLambda v t b) = P.Abs v t b
+val2exp (VAbs v t b) = P.Abs v t b
 val2exp (NumVal nv) = num2exp nv
 num2exp :: NumValue -> P.Exp
 num2exp Zero = P.Zero
