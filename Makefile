@@ -9,6 +9,7 @@ clean:
 	-rm *.hi
 	-rm *.o
 	-rm Parser.hs
+	-rm Parser.info
 
 clean-all: clean
 	-rm Main
