@@ -28,6 +28,8 @@ import Data.Char
     iszero { TokenIszero }
     '(' { TokenOpenBracket }
     ')' { TokenCloseBracket }
+    '[' { TokenOpenSqBracket }
+    ']' { TokenCloseSqBracket }
     add { TokenAdd }
     mult { TokenMult }
     sub { TokenSub }
@@ -47,6 +49,7 @@ import Data.Char
 
 Exp
     : '(' Do ')' { $2 }
+    | '[' TApp ']' { $2 }
     | true { Btrue }
     | false { Bfalse }
     | '0' { Zero }
@@ -62,9 +65,12 @@ Do
     | sub Exp Exp { Sub $2 $3 }
     | div Exp Exp { Div $2 $3 }
     | while Exp Exp { While $2 $3 }
-    | 'λ' Variable Type Exp { Lambda $2 $3 $4 }
+    | 'λ' Variable Type Exp { Abs $2 $3 $4 }
     | 'Λ' Variable Kind Exp { TypeAbs $2 $3 $4 }
     | Exp Exp { App $1 $2 }
+
+TApp
+    : Exp Type { TypeApp $1 $2 }
 
 Type
     : int { Tint }
@@ -103,9 +109,10 @@ data Exp
     | Sub Exp Exp
     | Div Exp Exp
     | While Exp Exp
-    | Lambda Variable Type Exp
+    | Abs Variable Type Exp
     | TypeAbs Variable Kind Exp
     | App Exp Exp
+    | TypeApp Exp Type
         deriving (Show, Eq)
 
 data Type
@@ -137,6 +144,8 @@ data Token
     | TokenIszero
     | TokenOpenBracket
     | TokenCloseBracket
+    | TokenOpenSqBracket
+    | TokenCloseSqBracket
     | TokenAdd
     | TokenMult
     | TokenSub
@@ -161,6 +170,8 @@ lexer (c:cs)
 lexer ('0':cs) = TokenZero : lexer cs
 lexer ('(':cs) = TokenOpenBracket : lexer cs
 lexer (')':cs) = TokenCloseBracket : lexer cs
+lexer ('[':cs) = TokenOpenSqBracket : lexer cs
+lexer (']':cs) = TokenCloseSqBracket : lexer cs
 lexer ('λ':cs) = TokenLambda : lexer cs
 lexer ('Λ':cs) = TokenBigLambda : lexer cs
 lexer ('∀':cs) = TokenForall : lexer cs

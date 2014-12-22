@@ -94,8 +94,10 @@ getType env (P.App e1 e2)
             getSecond (Arrow t1 t2) = t2
             getSecond _ = BadlyTyped
 -- T-Abs
-getType env (P.Lambda (P.Var var) t exp)
-    | vartype /= BadlyTyped && bodytype /= BadlyTyped = Arrow vartype bodytype
+getType env (P.Abs (P.Var var) t exp)
+    | vartype /= BadlyTyped
+        && getKind env vartype == Star
+        && bodytype /= BadlyTyped = Arrow vartype bodytype
     | otherwise = BadlyTyped
         where
             bodytype :: Type
@@ -118,6 +120,13 @@ getTypeArithmetic :: Env -> P.Exp -> P.Exp -> Type
 getTypeArithmetic env e1 e2
     | getType env e1 == Nat && getType env e2 == Nat = Nat
     | otherwise = BadlyTyped
+
+getKind :: Env -> Type -> Kind
+getKind _ Nat = Star
+getKind _ Bool = Star
+-- K-Arrow
+getKind env (Arrow t1 t2)
+    | getKind env t1 == Star && getKind env t2 == Star = Star
 
 
 eval :: P.Exp -> Value
@@ -178,7 +187,7 @@ eval (P.Div e1 e2) = divv (eval e1) (eval e2)
 --        while Vtrue  = eval $ P.While (P.Bbool P.Btrue) e2
 --        while Vfalse = error "Nothing left when trying to eval while"
 --        while _      = error "Evaluation failed @ while"
-eval (P.Lambda var t body) = VLambda var t body
+eval (P.Abs var t body) = VLambda var t body
 eval (P.App e1 e2) = app (eval e1) (eval e2)
     where
         app :: Value -> Value -> Value
@@ -190,9 +199,9 @@ substitute :: String -> P.Exp -> P.Exp -> P.Exp
 substitute s arg (P.VarUsage (P.Var s2))
     | s == s2 = arg
     | otherwise = P.VarUsage $ P.Var s2
-substitute s arg l@(P.Lambda v@(P.Var s2) t b)
+substitute s arg l@(P.Abs v@(P.Var s2) t b)
     | s == s2 = l
-    | otherwise = P.Lambda v t $ substitute s arg b
+    | otherwise = P.Abs v t $ substitute s arg b
 substitute s arg P.Zero = P.Zero
 substitute s arg P.Btrue = P.Btrue
 substitute s arg P.Bfalse = P.Bfalse
@@ -211,7 +220,7 @@ substitute s arg (P.App e1 e2) = P.App (substitute s arg e1) (substitute s arg e
 val2exp :: Value -> P.Exp
 val2exp Vtrue = P.Btrue
 val2exp Vfalse = P.Bfalse
-val2exp (VLambda v t b) = P.Lambda v t b
+val2exp (VLambda v t b) = P.Abs v t b
 val2exp (NumVal nv) = num2exp nv
 num2exp :: NumValue -> P.Exp
 num2exp Zero = P.Zero
