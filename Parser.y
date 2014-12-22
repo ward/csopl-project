@@ -3,8 +3,6 @@ module Parser (
     calc,
     lexer,
     Exp(..),
-    Bbool(..),
-    LambdaVar(..),
     Type(..),
     Variable(..)) where
 
@@ -24,59 +22,65 @@ import Data.Char
     true { TokenTrue }
     false { TokenFalse }
     if { TokenIf }
-    then { TokenThen }
-    else { TokenElse }
     '0' { TokenZero }
     succ { TokenSucc }
     pred { TokenPred }
     iszero { TokenIszero }
     '(' { TokenOpenBracket }
     ')' { TokenCloseBracket }
-    '[' { TokenOpenSqBracket }
-    ']' { TokenCloseSqBracket }
     add { TokenAdd }
     mult { TokenMult }
     sub { TokenSub }
     div { TokenDiv }
     while { TokenWhile }
-    app { TokenApp }
     'λ' { TokenLambda }
-    ':' { TokenColon }
-    '.' { TokenDot }
+    'Λ' { TokenBigLambda }
     '→' { TokenArrow }
+    '∀' { TokenForall }
     var { TokenVar $$ }
-    vartype { TokenType $$ }
+    int { TokenTypeInt }
+    bool { TokenTypeBool }
+    '*' { TokenKind }
+    '⇒' { TokenDoubleArrow }
 
 %%
 
 Exp
-    : '(' Exp ')' { $2 }
-    | if Exp then Exp else Exp { If $2 $4 $6 }
-    | Bbool { Bbool $1 }
+    : '(' Do ')' { $2 }
+    | true { Btrue }
+    | false { Bfalse }
+    | '0' { Zero }
+    | Variable { VarUsage $1 }
+
+Do
+    : if Exp Exp Exp { If $2 $3 $4 }
     | succ Exp { Succ $2 }
     | pred Exp { Pred $2 }
-    | '0' { Zero }
     | iszero Exp { Iszero $2 }
     | add Exp Exp { Add $2 $3 }
     | mult Exp Exp { Mult $2 $3 }
     | sub Exp Exp { Sub $2 $3 }
     | div Exp Exp { Div $2 $3 }
     | while Exp Exp { While $2 $3 }
-    | app Exp Exp { App $2 $3 }
-    | '[' 'λ' LambdaVar '.' Exp ']' { Lambda $3 $5 }
-    | Variable { VarUsage $1 }
-
-Bbool
-    : false { Bfalse }
-    | true { Btrue }
-
-LambdaVar
-    : Variable ':' Type { LambdaVar $1 $3 }
+    | 'λ' Variable Type Exp { Lambda $2 $3 $4 }
+    | 'Λ' Variable Kind Exp { TypeAbs $2 $3 $4 }
+    | Exp Exp { App $1 $2 }
 
 Type
-    : vartype { Type $1 }
-    | Type '→' Type { Arrow $1 $3 }
-    | '(' Type ')' { $2 }
+    : int { Tint }
+    | bool { Tbool }
+    | Variable { TypeVarUsage $1 }
+    | '(' DoType ')' { $2 }
+
+DoType
+    : '→' Type Type { Arrow $2 $3 }
+    | '∀' Variable Kind Type { Forall $2 $3 $4 }
+    | 'λ' Variable Kind Type { OpAbs $2 $3 $4 }
+    | Type Type { OpApp $1 $2 }
+
+Kind
+    : '*' { Kind }
+    | '(' '⇒' Kind Kind ')' { KindArrow $3 $4 }
 
 Variable
     : var { Var $1 }
@@ -86,34 +90,37 @@ parseError :: [Token] -> a
 parseError _ = error "I'm afraid I cannot parse that"
 
 data Exp
-    = Bbool Bbool
+    = Btrue
+    | Bfalse
     | Zero
+    | VarUsage Variable
     | If Exp Exp Exp
-    | Iszero Exp
     | Succ Exp
     | Pred Exp
+    | Iszero Exp
     | Add Exp Exp
     | Mult Exp Exp
     | Sub Exp Exp
     | Div Exp Exp
     | While Exp Exp
-    | Lambda LambdaVar Exp
-    | VarUsage Variable
+    | Lambda Variable Type Exp
+    | TypeAbs Variable Kind Exp
     | App Exp Exp
         deriving (Show, Eq)
 
-data Bbool
-    = Bfalse
-    | Btrue
-        deriving (Show, Eq)
-
-data LambdaVar
-    = LambdaVar Variable Type
-        deriving (Show, Eq)
-
 data Type
-    = Type String
+    = Tint
+    | Tbool
+    | TypeVarUsage Variable
     | Arrow Type Type
+    | Forall Variable Kind Type
+    | OpAbs Variable Kind Type
+    | OpApp Type Type
+        deriving (Show, Eq)
+
+data Kind
+    = Kind
+    | KindArrow Kind Kind
         deriving (Show, Eq)
 
 data Variable
@@ -124,28 +131,26 @@ data Token
     = TokenTrue
     | TokenFalse
     | TokenIf
-    | TokenThen
-    | TokenElse
     | TokenZero
     | TokenSucc
     | TokenPred
     | TokenIszero
     | TokenOpenBracket
     | TokenCloseBracket
-    | TokenOpenSqBracket
-    | TokenCloseSqBracket
     | TokenAdd
     | TokenMult
     | TokenSub
     | TokenDiv
     | TokenWhile
-    | TokenApp
     | TokenLambda
-    | TokenColon
-    | TokenDot
+    | TokenBigLambda
     | TokenArrow
+    | TokenForall
     | TokenVar String
-    | TokenType String
+    | TokenTypeInt
+    | TokenTypeBool
+    | TokenKind
+    | TokenDoubleArrow
         deriving (Show)
 
 
@@ -156,28 +161,15 @@ lexer (c:cs)
 lexer ('0':cs) = TokenZero : lexer cs
 lexer ('(':cs) = TokenOpenBracket : lexer cs
 lexer (')':cs) = TokenCloseBracket : lexer cs
-lexer ('[':cs) = TokenOpenSqBracket : lexer cs
-lexer (']':cs) = TokenCloseSqBracket : lexer cs
 lexer ('λ':cs) = TokenLambda : lexer cs
--- To distinguish between free text representing a variable and that
--- representing types, this function handles everything for the type.
--- Upon encountering a '.', control is back to the lexer.
-lexer (':':cs) = TokenColon : lexerType cs
-  where
-    lexerType :: String -> [Token]
-    lexerType ('(':cs) = TokenOpenBracket : lexerType cs
-    lexerType (')':cs) = TokenCloseBracket : lexerType cs
-    lexerType ('→':cs) = TokenArrow : lexerType cs
-    lexerType ('.':cs) = lexer $ '.':cs
-    lexerType cs =
-      case span isAlpha cs of
-          (var, rest) -> TokenType var : lexerType rest
-lexer ('.':cs) = TokenDot : lexer cs
+lexer ('Λ':cs) = TokenBigLambda : lexer cs
+lexer ('∀':cs) = TokenForall : lexer cs
+lexer ('→':cs) = TokenArrow : lexer cs
+lexer ('⇒':cs) = TokenDoubleArrow : lexer cs
+lexer ('*':cs) = TokenKind : lexer cs
 lexer cs =
     case span isAlpha cs of
         ("if", rest) -> TokenIf : lexer rest
-        ("then", rest) -> TokenThen : lexer rest
-        ("else", rest) -> TokenElse : lexer rest
         ("iszero", rest) -> TokenIszero : lexer rest
         ("succ", rest) -> TokenSucc : lexer rest
         ("pred", rest) -> TokenPred : lexer rest
@@ -188,7 +180,8 @@ lexer cs =
         ("sub", rest) -> TokenSub : lexer rest
         ("div", rest) -> TokenDiv : lexer rest
         ("while", rest) -> TokenWhile : lexer rest
-        ("app", rest) -> TokenApp : lexer rest
+        ("int", rest) -> TokenTypeInt : lexer rest
+        ("bool", rest) -> TokenTypeBool : lexer rest
         (var, rest) -> TokenVar var : lexer rest
 
 }
