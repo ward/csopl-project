@@ -15,4 +15,4 @@ clean:
 
 clean-all: clean
 	-rm Main
-	-rm New
+	-rm Old

@@ -15,8 +15,8 @@ main = do
     print parsed
     putStr "Type:      "
     print . findType $ parsed
-    -- putStr "Evaluated: "
-    -- print . eval $ parsed
+    putStr "Evaluated: "
+    print . eval $ parsed
 
 findType :: Exp -> Type
 findType exp = getType Map.empty exp
@@ -67,7 +67,7 @@ getType env (TypeApp t₁ t₂) = handle $ getType env t₁
     where
         handle :: Type -> Type
         handle (Forall (Var x) k₁₁ t₁₂)
-            | getKind env t₂ == k₁₁ = substituteType x t₂ t₁₂
+            | getKind env t₂ == k₁₁ = substituteTypeInType x t₂ t₁₂
         handle _ = error "Failed to get type @ TypeApp"
 -- T-Eq? TODO
 
@@ -91,25 +91,132 @@ getKind env (OpApp t₁ t₂) = handle $ getKind env t₁
 -- K-Arrow
 getKind env (Arrow t₁ t₂)
     | getKind env t₁ == Star && getKind env t₂ == Star = Star
-    | otherwise = "Failed to get kind @ Arrow"
+    | otherwise = error "Failed to get kind @ Arrow"
 -- K-All
 getKind env (Forall (Var x) k₁ t₂)
     | getKind (Map.insert x (Right k₁) env) t₂ == Star = Star
 
 -- |Used to perform substitution in T-TApp.
-substituteType :: String -> Type -> Type -> Type
-substituteType s arg Tint = Tint
-substituteType s arg Tbool = Tbool
-substituteType s arg tvu@(TypeVarUsage (Var var))
+substituteTypeInType :: String -> Type -> Type -> Type
+substituteTypeInType s arg Tint = Tint
+substituteTypeInType s arg Tbool = Tbool
+substituteTypeInType s arg tvu@(TypeVarUsage (Var var))
     | s == var = arg
     | otherwise = tvu
-substituteType s arg (Arrow t1 t2)
-    = Arrow (substituteType s arg t1) (substituteType s arg t2)
-substituteType s arg fa@(Forall (Var var) kind t)
+substituteTypeInType s arg (Arrow t1 t2)
+    = Arrow (substituteTypeInType s arg t1) (substituteTypeInType s arg t2)
+substituteTypeInType s arg fa@(Forall (Var var) kind t)
     | s == var = trace "TODO should it rename quantifier variable of forall or skip?" fa -- TODO
-    | otherwise = Forall (Var var) kind (substituteType s arg t)
-substituteType s arg opabs@(OpAbs (Var var) kind t)
+    | otherwise = Forall (Var var) kind (substituteTypeInType s arg t)
+substituteTypeInType s arg opabs@(OpAbs (Var var) kind t)
     | s == var = opabs
-    | otherwise = OpAbs (Var var) kind $ substituteType s arg t
-substituteType s arg (OpApp t1 t2)
-    = OpApp (substituteType s arg t1) (substituteType s arg t2)
+    | otherwise = OpAbs (Var var) kind $ substituteTypeInType s arg t
+substituteTypeInType s arg (OpApp t1 t2)
+    = OpApp (substituteTypeInType s arg t1) (substituteTypeInType s arg t2)
+
+substituteTermInTerm :: String -> Exp -> Exp -> Exp
+substituteTermInTerm s arg Btrue = Btrue
+substituteTermInTerm s arg Bfalse = Bfalse
+substituteTermInTerm s arg Zero = Zero
+substituteTermInTerm s arg (VarUsage (Var s2))
+    | s == s2 = arg
+    | otherwise = VarUsage $ Var s2
+substituteTermInTerm s arg (If c t f)
+    = If (substituteTermInTerm s arg c)
+         (substituteTermInTerm s arg t)
+         (substituteTermInTerm s arg f)
+substituteTermInTerm s arg (Succ e) = Succ $ substituteTermInTerm s arg e
+substituteTermInTerm s arg (Pred e) = Pred $ substituteTermInTerm s arg e
+substituteTermInTerm s arg (Iszero e) = Iszero $ substituteTermInTerm s arg e
+substituteTermInTerm s arg abstraction@(Abs (Var x) t b)
+    | s == x = abstraction
+    | otherwise = Abs (Var x) t $ substituteTermInTerm s arg b
+substituteTermInTerm s arg (App e1 e2) = App (substituteTermInTerm s arg e1) (substituteTermInTerm s arg e2)
+substituteTermInTerm s arg tabs@(TypeAbs (Var x) k e)
+    | s == x = tabs
+    | otherwise = TypeAbs (Var x) k $ substituteTermInTerm s arg e
+substituteTermInTerm s arg (TypeApp e t) = TypeApp (substituteTermInTerm s arg e) t
+
+substituteTypeInTerm :: String -> Type -> Exp -> Exp
+substituteTypeInTerm s arg Btrue = Btrue
+substituteTypeInTerm s arg Bfalse = Bfalse
+substituteTypeInTerm s arg Zero = Zero
+substituteTypeInTerm s arg (VarUsage (Var s2))
+    | s == s2 = error "Encountered variable representing a type where I shouldn't"
+    | otherwise = VarUsage $ Var s2
+substituteTypeInTerm s arg (If c t f)
+    = If (substituteTypeInTerm s arg c)
+         (substituteTypeInTerm s arg t)
+         (substituteTypeInTerm s arg f)
+substituteTypeInTerm s arg (Succ e) = Succ $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg (Pred e) = Pred $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg (Iszero e) = Iszero $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg abstraction@(Abs (Var x) t b)
+    | s == x = abstraction
+    | otherwise = Abs (Var x) (substituteTypeInType s arg t) (substituteTypeInTerm s arg b)
+substituteTypeInTerm s arg (App e1 e2)
+    = App (substituteTypeInTerm s arg e1) (substituteTypeInTerm s arg e2)
+substituteTypeInTerm s arg tabs@(TypeAbs (Var x) k e)
+    | s == x = tabs
+    | otherwise = TypeAbs (Var x) k $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg (TypeApp e t)
+    = TypeApp (substituteTypeInTerm s arg e) (substituteTypeInType s arg t)
+
+-- | Applies the evaluation rules E-*
+eval :: Exp -> Exp
+eval Btrue = Btrue
+eval Bfalse = Bfalse
+eval Zero = Zero
+eval (Abs v t e) = Abs v t e
+eval (TypeAbs v k e) = TypeAbs v k e
+-- E-If, E-IfTrue, E-IfFalse
+eval (If c t f) = chooseBranch $ eval c
+    where
+        chooseBranch :: Exp -> Exp
+        chooseBranch Btrue = eval t
+        chooseBranch Bfalse = eval f
+        chooseBranch _ = error "Evaluation failed @ if"
+-- E-Succ
+eval (Succ t) = Succ $ eval t
+-- E-PredZero
+eval (Pred Zero) = Zero
+-- E-PredSucc
+eval (Pred (Succ nv))
+    | isNumericValue nv = nv
+-- E-Pred
+eval (Pred t) = eval $ Pred $ eval t
+-- E-IsZeroZero
+eval (Iszero Zero) = Btrue
+-- E-IsZeroSucc
+eval (Iszero (Succ nv))
+    | isNumericValue nv = Bfalse
+-- E-IsZero
+eval (Iszero t) = eval $ Iszero $ eval t
+-- E-AppAbs
+eval (App (Abs (Var x) t₁₁ t₁₂) v₂)
+    | isValue v₂ = eval $ substituteTermInTerm x v₂ t₁₂
+-- E-App2
+eval (App v₁ t₂)
+    | isValue v₁ = eval $ App v₁ (eval t₂)
+-- E-App1
+eval (App t₁ t₂) = eval $ App (eval t₁) t₂
+-- E-TappTabs
+eval (TypeApp (TypeAbs (Var x) k₁₁ t₁₂) t₂) = eval $ substituteTypeInTerm x t₂ t₁₂
+-- E-TApp
+eval (TypeApp t₁ t₂) = eval $ TypeApp (eval t₁) t₂
+
+
+-- |Decides whether something is a value (true, false, abs, type abs, numerical
+--  value)
+isValue :: Exp -> Bool
+isValue Btrue = True
+isValue Bfalse = True
+isValue (Abs v t e) = True
+isValue (TypeAbs v k e) = True
+isValue nv = isNumericValue nv
+-- |Decides whether something is a numerical value (Zero or succ of numerical
+--  value)
+isNumericValue :: Exp -> Bool
+isNumericValue Zero = True
+isNumericValue (Succ nv) = isNumericValue nv
+isNumericValue _ = False
