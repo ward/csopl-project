@@ -17,8 +17,6 @@ import Data.Char
 %tokentype { Token }
 %error { parseError }
 
-%right '→'
-
 %token
     true { TokenTrue }
     false { TokenFalse }
@@ -45,8 +43,13 @@ import Data.Char
     bool { TokenTypeBool }
     '*' { TokenKind }
     '⇒' { TokenDoubleArrow }
+    define { TokenDefine }
 
 %%
+
+Exps
+    : Exp { [$1] }
+    | Exp Exps { $1 : $2 }
 
 Exp
     : '(' Do ')' { $2 }
@@ -69,6 +72,7 @@ Do
     | 'λ' Variable Type Exp { Abs $2 $3 $4 }
     | 'Λ' Variable Kind Exp { TypeAbs $2 $3 $4 }
     | Exp Exp { App $1 $2 }
+    | define Variable Exp { Define $2 $3 }
 
 TApp
     : Exp Type { TypeApp $1 $2 }
@@ -114,6 +118,7 @@ data Exp
     | TypeAbs Variable Kind Exp
     | App Exp Exp
     | TypeApp Exp Type
+    | Define Variable Exp
         deriving (Show, Eq)
 
 data Type
@@ -161,6 +166,7 @@ data Token
     | TokenTypeBool
     | TokenKind
     | TokenDoubleArrow
+    | TokenDefine
         deriving (Show)
 
 -- |Turns a string into the tokens we have defined.
@@ -201,6 +207,7 @@ lexer cs =
         ("while", rest) -> TokenWhile : lexer rest
         ("int", rest) -> TokenTypeInt : lexer rest
         ("bool", rest) -> TokenTypeBool : lexer rest
+        ("define", rest) -> TokenDefine : lexer rest
         (var, rest) -> TokenVar var : lexer rest
 
 }

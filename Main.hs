@@ -16,10 +16,31 @@ main = do
     putStr "Type:      "
     print . findType $ parsed
     putStr "Evaluated: "
-    print . eval $ parsed
+    print . evalAll $ parsed
 
-findType :: Exp -> Type
-findType exp = getType Map.empty exp
+findType :: [Exp] -> Type
+findType exps = getTypeAll Map.empty exps
+
+-- |This is a pure language where only the last expression "returns" to the real
+--  world. As such, ignore those that have no relevance whatsoever.
+getTypeAll :: Env -> [Exp] -> Type
+getTypeAll env ((Define (Var x) exp):[]) = getType env exp
+getTypeAll env ((Define (Var x) exp):es) = getTypeAll (Map.insert x (Left (getType env exp)) env) es
+getTypeAll env (e:[]) = getType env e
+getTypeAll env (e:es) = getTypeAll env es
+
+-- Hackish way to force evaluation of getType
+--getTypeAll env (e:es)
+--    | okType (getType env e) = getTypeAll env es
+--    where
+--        okType :: Type -> Bool
+--        okType Tbool = True
+--        okType Tint = True
+--        okType (TypeVarUsage _) = True
+--        okType (Arrow _ _) = True
+--        okType (Forall _ _ _) = True
+--        okType (OpAbs _ _ _) = True
+--        okType (OpApp _ _) = True
 
 -- |Recursively applies typing rules to find the type of an expression.
 getType :: Env -> Exp -> Type
@@ -69,6 +90,8 @@ getType env (TypeApp t₁ t₂) = handle $ getType env t₁
         handle (Forall (Var x) k₁₁ t₁₂)
             | getKind env t₂ == k₁₁ = substituteTypeInType x t₂ t₁₂
         handle _ = error "Failed to get type @ TypeApp"
+-- T-Define
+getType env (Define v e) = getType env e
 -- T-Eq? TODO
 
 -- |Recursively applies kinding rules to find the kind of a given type
@@ -136,6 +159,7 @@ substituteTermInTerm s arg tabs@(TypeAbs (Var x) k e)
     | s == x = tabs
     | otherwise = TypeAbs (Var x) k $ substituteTermInTerm s arg e
 substituteTermInTerm s arg (TypeApp e t) = TypeApp (substituteTermInTerm s arg e) t
+substituteTermInTerm s arg (Define v e) = Define v $ substituteTermInTerm s arg e
 
 substituteTypeInTerm :: String -> Type -> Exp -> Exp
 substituteTypeInTerm s arg Btrue = Btrue
@@ -161,6 +185,22 @@ substituteTypeInTerm s arg tabs@(TypeAbs (Var x) k e)
     | otherwise = TypeAbs (Var x) k $ substituteTypeInTerm s arg e
 substituteTypeInTerm s arg (TypeApp e t)
     = TypeApp (substituteTypeInTerm s arg e) (substituteTypeInType s arg t)
+substituteTypeInTerm s arg (Define v e) = Define v $ substituteTypeInTerm s arg e
+
+
+evalAll :: [Exp] -> Exp
+evalAll ((Define (Var x) exp):[]) = eval exp
+evalAll ((Define (Var x) exp):es) = evalAll $ substituteTermInTerms x (eval exp) es
+    where
+        substituteTermInTerms :: String -> Exp -> [Exp] -> [Exp]
+        substituteTermInTerms _ _ [] = []
+        substituteTermInTerms s arg ((Define (Var x) e):es)
+            | s == x = Define (Var x) (substituteTermInTerm s arg e) : es
+        substituteTermInTerms s arg (e:es)
+            = substituteTermInTerm s arg e : substituteTermInTerms s arg es
+evalAll (e:[]) = eval e
+evalAll (e:es) = evalAll es
+
 
 -- | Applies the evaluation rules E-*
 eval :: Exp -> Exp
@@ -204,6 +244,8 @@ eval (App t₁ t₂) = eval $ App (eval t₁) t₂
 eval (TypeApp (TypeAbs (Var x) k₁₁ t₁₂) t₂) = eval $ substituteTypeInTerm x t₂ t₁₂
 -- E-TApp
 eval (TypeApp t₁ t₂) = eval $ TypeApp (eval t₁) t₂
+-- E-Define
+eval (Define v e) = eval e
 
 
 -- |Decides whether something is a value (true, false, abs, type abs, numerical
