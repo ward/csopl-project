@@ -1,0 +1,17 @@
+; TODO run through drracket's indenter
+
+; Wrong plusfive
+(define plusfive (λ n int (succ 0)))
+(define minustwo (λ n int (pred (pred n))))
+; Correct plusfive by overriding
+(define plusfive (λ n int (succ (succ (succ (succ (succ n)))))))
+
+; Type abstraction
+(define idgeneric (Λ X * (λ x X x)))
+; Type application
+(define idint [idgeneric int])
+(define idinttobool [idgeneric (→ int bool)])
+
+(define isone (λ n int (iszero (pred n))))
+
+((idinttobool isone) (idint (succ 0)))

@@ -69,7 +69,7 @@ getType env (Iszero e)
 -- T-Var
 getType env (VarUsage (Var s)) = case Map.lookup s env of
     (Just (Left t)) -> t
-    _ -> error "Failed to get type @ VarUsage"
+    _ -> error $ "Failed to get type @ VarUsage of " ++ show s
 -- T-App
 getType env (App e1 e2) = handle $ getType env e1
     where
