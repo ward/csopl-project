@@ -168,6 +168,13 @@ lexer :: String -> [Token]
 lexer [] = []
 lexer (c:cs)
     | isSpace c = lexer cs
+-- Comment
+lexer (';':cs) = lexer $ eatTillNewLine cs
+    where
+        eatTillNewLine :: String -> String
+        eatTillNewLine [] = []
+        eatTillNewLine ('\n':cs) = cs
+        eatTillNewLine (_:cs) = eatTillNewLine cs
 lexer ('0':cs) = TokenZero : lexer cs
 lexer ('(':cs) = TokenOpenBracket : lexer cs
 lexer (')':cs) = TokenCloseBracket : lexer cs
