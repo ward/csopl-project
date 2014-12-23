@@ -39,3 +39,7 @@ false
 ((λ x (→ int int) (λ x bool x)) (λ y int 0))
 ((λ x (→ int int) (λ x bool x)) (λ x int 0))
 ((λ x (→ int int) ((λ x bool x) x)) (λ x int 0))
+(Λ X * (λ x X x))
+[(Λ X * (λ x X x)) bool]
+[(Λ X * (λ x X x)) int]
+([(Λ X * (λ x X x)) int] 0)

@@ -163,7 +163,7 @@ data Token
     | TokenDoubleArrow
         deriving (Show)
 
-
+-- |Turns a string into the tokens we have defined.
 lexer :: String -> [Token]
 lexer [] = []
 lexer (c:cs)
