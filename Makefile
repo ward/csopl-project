@@ -4,8 +4,8 @@ all: Parser.hs Main.hs
 Parser.hs: Parser.y
 	happy Parser.y
 
-new: Parser.hs New.hs
-	ghc New.hs
+old: Parser.hs Old.hs
+	ghc Old.hs
 
 clean:
 	-rm *.hi
