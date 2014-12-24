@@ -15,3 +15,15 @@
 (define isone (λ n int (iszero (pred n))))
 
 ((idinttobool isone) (idint (succ 0)))
+
+; Works
+(define clearinttointTOinttoint (λ x (→ int int) x))
+(clearinttointTOinttoint (λ x int x))
+; The following will fail due to no type equivalence
+(define obscureinttointTOinttoint
+	(λ x
+		((λ T * (→ T T)) int)
+		x))
+(
+	obscureinttointTOinttoint
+	(λ x int x))

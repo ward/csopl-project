@@ -18,6 +18,15 @@ main = do
     putStr "Evaluated: "
     print . evalAll $ parsed
 
+
+--  _______          _
+-- |__   __|        (_)
+--    | |_   _ _ __  _ _ __   __ _
+--    | | | | | '_ \| | '_ \ / _` |
+--    | | |_| | |_) | | | | | (_| |
+--    |_|\__, | .__/|_|_| |_|\__, |
+--        __/ | |             __/ |
+--       |___/|_|            |___/
 findType :: [Exp] -> Type
 findType exps = getTypeAll Map.empty exps
 
@@ -119,75 +128,15 @@ getKind env (Arrow t₁ t₂)
 getKind env (Forall (Var x) k₁ t₂)
     | getKind (Map.insert x (Right k₁) env) t₂ == Star = Star
 
--- |Used to perform substitution in T-TApp.
-substituteTypeInType :: String -> Type -> Type -> Type
-substituteTypeInType s arg Tint = Tint
-substituteTypeInType s arg Tbool = Tbool
-substituteTypeInType s arg tvu@(TypeVarUsage (Var var))
-    | s == var = arg
-    | otherwise = tvu
-substituteTypeInType s arg (Arrow t1 t2)
-    = Arrow (substituteTypeInType s arg t1) (substituteTypeInType s arg t2)
-substituteTypeInType s arg fa@(Forall (Var var) kind t)
-    | s == var = trace "TODO should it rename quantifier variable of forall or skip?" fa -- TODO
-    | otherwise = Forall (Var var) kind (substituteTypeInType s arg t)
-substituteTypeInType s arg opabs@(OpAbs (Var var) kind t)
-    | s == var = opabs
-    | otherwise = OpAbs (Var var) kind $ substituteTypeInType s arg t
-substituteTypeInType s arg (OpApp t1 t2)
-    = OpApp (substituteTypeInType s arg t1) (substituteTypeInType s arg t2)
+--  ______          _             _   _
+-- |  ____|        | |           | | (_)
+-- | |____   ____ _| |_   _  __ _| |_ _  ___  _ __
+-- |  __\ \ / / _` | | | | |/ _` | __| |/ _ \| '_ \
+-- | |___\ V / (_| | | |_| | (_| | |_| | (_) | | | |
+-- |______\_/ \__,_|_|\__,_|\__,_|\__|_|\___/|_| |_|
 
-substituteTermInTerm :: String -> Exp -> Exp -> Exp
-substituteTermInTerm s arg Btrue = Btrue
-substituteTermInTerm s arg Bfalse = Bfalse
-substituteTermInTerm s arg Zero = Zero
-substituteTermInTerm s arg (VarUsage (Var s2))
-    | s == s2 = arg
-    | otherwise = VarUsage $ Var s2
-substituteTermInTerm s arg (If c t f)
-    = If (substituteTermInTerm s arg c)
-         (substituteTermInTerm s arg t)
-         (substituteTermInTerm s arg f)
-substituteTermInTerm s arg (Succ e) = Succ $ substituteTermInTerm s arg e
-substituteTermInTerm s arg (Pred e) = Pred $ substituteTermInTerm s arg e
-substituteTermInTerm s arg (Iszero e) = Iszero $ substituteTermInTerm s arg e
-substituteTermInTerm s arg abstraction@(Abs (Var x) t b)
-    | s == x = abstraction
-    | otherwise = Abs (Var x) t $ substituteTermInTerm s arg b
-substituteTermInTerm s arg (App e1 e2) = App (substituteTermInTerm s arg e1) (substituteTermInTerm s arg e2)
-substituteTermInTerm s arg tabs@(TypeAbs (Var x) k e)
-    | s == x = tabs
-    | otherwise = TypeAbs (Var x) k $ substituteTermInTerm s arg e
-substituteTermInTerm s arg (TypeApp e t) = TypeApp (substituteTermInTerm s arg e) t
-substituteTermInTerm s arg (Define v e) = Define v $ substituteTermInTerm s arg e
-
-substituteTypeInTerm :: String -> Type -> Exp -> Exp
-substituteTypeInTerm s arg Btrue = Btrue
-substituteTypeInTerm s arg Bfalse = Bfalse
-substituteTypeInTerm s arg Zero = Zero
-substituteTypeInTerm s arg (VarUsage (Var s2))
-    | s == s2 = error "Encountered variable representing a type where I shouldn't"
-    | otherwise = VarUsage $ Var s2
-substituteTypeInTerm s arg (If c t f)
-    = If (substituteTypeInTerm s arg c)
-         (substituteTypeInTerm s arg t)
-         (substituteTypeInTerm s arg f)
-substituteTypeInTerm s arg (Succ e) = Succ $ substituteTypeInTerm s arg e
-substituteTypeInTerm s arg (Pred e) = Pred $ substituteTypeInTerm s arg e
-substituteTypeInTerm s arg (Iszero e) = Iszero $ substituteTypeInTerm s arg e
-substituteTypeInTerm s arg abstraction@(Abs (Var x) t b)
-    | s == x = abstraction
-    | otherwise = Abs (Var x) (substituteTypeInType s arg t) (substituteTypeInTerm s arg b)
-substituteTypeInTerm s arg (App e1 e2)
-    = App (substituteTypeInTerm s arg e1) (substituteTypeInTerm s arg e2)
-substituteTypeInTerm s arg tabs@(TypeAbs (Var x) k e)
-    | s == x = tabs
-    | otherwise = TypeAbs (Var x) k $ substituteTypeInTerm s arg e
-substituteTypeInTerm s arg (TypeApp e t)
-    = TypeApp (substituteTypeInTerm s arg e) (substituteTypeInType s arg t)
-substituteTypeInTerm s arg (Define v e) = Define v $ substituteTypeInTerm s arg e
-
-
+-- |Evaluates several expressions. Since there are no sideeffects, we really
+--  only consider the last expression and any defines before it.
 evalAll :: [Exp] -> Exp
 evalAll ((Define (Var x) exp):[]) = eval exp
 evalAll ((Define (Var x) exp):es) = evalAll $ substituteTermInTerms x (eval exp) es
@@ -262,3 +211,82 @@ isNumericValue :: Exp -> Bool
 isNumericValue Zero = True
 isNumericValue (Succ nv) = isNumericValue nv
 isNumericValue _ = False
+
+
+--   _____       _         _   _ _         _   _
+--  / ____|     | |       | | (_) |       | | (_)
+-- | (___  _   _| |__  ___| |_ _| |_ _   _| |_ _  ___  _ __
+--  \___ \| | | | '_ \/ __| __| | __| | | | __| |/ _ \| '_ \
+--  ____) | |_| | |_) \__ \ |_| | |_| |_| | |_| | (_) | | | |
+-- |_____/ \__,_|_.__/|___/\__|_|\__|\__,_|\__|_|\___/|_| |_|
+
+
+-- |Used to perform substitution, placing a type in a type.
+substituteTypeInType :: String -> Type -> Type -> Type
+substituteTypeInType s arg Tint = Tint
+substituteTypeInType s arg Tbool = Tbool
+substituteTypeInType s arg tvu@(TypeVarUsage (Var var))
+    | s == var = arg
+    | otherwise = tvu
+substituteTypeInType s arg (Arrow t1 t2)
+    = Arrow (substituteTypeInType s arg t1) (substituteTypeInType s arg t2)
+substituteTypeInType s arg fa@(Forall (Var var) kind t)
+    | s == var = trace "TODO should it rename quantifier variable of forall or skip?" fa -- TODO
+    | otherwise = Forall (Var var) kind (substituteTypeInType s arg t)
+substituteTypeInType s arg opabs@(OpAbs (Var var) kind t)
+    | s == var = opabs
+    | otherwise = OpAbs (Var var) kind $ substituteTypeInType s arg t
+substituteTypeInType s arg (OpApp t1 t2)
+    = OpApp (substituteTypeInType s arg t1) (substituteTypeInType s arg t2)
+
+-- |Used to perform substitution, placing a term in a term.
+substituteTermInTerm :: String -> Exp -> Exp -> Exp
+substituteTermInTerm s arg Btrue = Btrue
+substituteTermInTerm s arg Bfalse = Bfalse
+substituteTermInTerm s arg Zero = Zero
+substituteTermInTerm s arg (VarUsage (Var s2))
+    | s == s2 = arg
+    | otherwise = VarUsage $ Var s2
+substituteTermInTerm s arg (If c t f)
+    = If (substituteTermInTerm s arg c)
+         (substituteTermInTerm s arg t)
+         (substituteTermInTerm s arg f)
+substituteTermInTerm s arg (Succ e) = Succ $ substituteTermInTerm s arg e
+substituteTermInTerm s arg (Pred e) = Pred $ substituteTermInTerm s arg e
+substituteTermInTerm s arg (Iszero e) = Iszero $ substituteTermInTerm s arg e
+substituteTermInTerm s arg abstraction@(Abs (Var x) t b)
+    | s == x = abstraction
+    | otherwise = Abs (Var x) t $ substituteTermInTerm s arg b
+substituteTermInTerm s arg (App e1 e2) = App (substituteTermInTerm s arg e1) (substituteTermInTerm s arg e2)
+substituteTermInTerm s arg tabs@(TypeAbs (Var x) k e)
+    | s == x = tabs
+    | otherwise = TypeAbs (Var x) k $ substituteTermInTerm s arg e
+substituteTermInTerm s arg (TypeApp e t) = TypeApp (substituteTermInTerm s arg e) t
+substituteTermInTerm s arg (Define v e) = Define v $ substituteTermInTerm s arg e
+
+-- |Used to perform substitution, placing a type in a term.
+substituteTypeInTerm :: String -> Type -> Exp -> Exp
+substituteTypeInTerm s arg Btrue = Btrue
+substituteTypeInTerm s arg Bfalse = Bfalse
+substituteTypeInTerm s arg Zero = Zero
+substituteTypeInTerm s arg (VarUsage (Var s2))
+    | s == s2 = error "Encountered variable representing a type where I shouldn't"
+    | otherwise = VarUsage $ Var s2
+substituteTypeInTerm s arg (If c t f)
+    = If (substituteTypeInTerm s arg c)
+         (substituteTypeInTerm s arg t)
+         (substituteTypeInTerm s arg f)
+substituteTypeInTerm s arg (Succ e) = Succ $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg (Pred e) = Pred $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg (Iszero e) = Iszero $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg abstraction@(Abs (Var x) t b)
+    | s == x = abstraction
+    | otherwise = Abs (Var x) (substituteTypeInType s arg t) (substituteTypeInTerm s arg b)
+substituteTypeInTerm s arg (App e1 e2)
+    = App (substituteTypeInTerm s arg e1) (substituteTypeInTerm s arg e2)
+substituteTypeInTerm s arg tabs@(TypeAbs (Var x) k e)
+    | s == x = tabs
+    | otherwise = TypeAbs (Var x) k $ substituteTypeInTerm s arg e
+substituteTypeInTerm s arg (TypeApp e t)
+    = TypeApp (substituteTypeInTerm s arg e) (substituteTypeInType s arg t)
+substituteTypeInTerm s arg (Define v e) = Define v $ substituteTypeInTerm s arg e
