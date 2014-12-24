@@ -129,12 +129,23 @@ data Type
     | Forall Variable Kind Type
     | OpAbs Variable Kind Type
     | OpApp Type Type
-        deriving (Show, Eq)
+        deriving (Eq)
+instance Show Type where
+    show Tint = "int"
+    show Tbool = "bool"
+    show (TypeVarUsage v) = "(TVU (" ++ show v ++ "))"
+    show (Arrow t₁ t₂) = "(→ " ++ show t₁ ++ " " ++ show t₂ ++ ")"
+    show (Forall v k t) = "(∀ (" ++ show v ++ ") " ++ show k ++ " " ++ show t ++ ")"
+    show (OpAbs v k t) = "(λ (" ++ show v ++ ") " ++ show k ++ " " ++ show t ++ ")"
+    show (OpApp t₁ t₂) = "(" ++ show t₁ ++ " " ++ show t₂ ++ ")"
 
 data Kind
     = Star
     | KindArrow Kind Kind
-        deriving (Show, Eq)
+        deriving (Eq)
+instance Show Kind where
+    show Star = "*"
+    show (KindArrow k₁ k₂) = "(⇒ " ++ show k₁ ++ " " ++ show k₂ ++ ")"
 
 data Variable
     = Var String

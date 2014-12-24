@@ -9,13 +9,21 @@ type Env = Map.Map String (Either Type Kind)
 main = do
     content <- getContents
     let parsed = calc . lexer $ content
-    putStr "Input:     "
+    putStrLn "+----------------------------------------------------------+"
+    putStrLn "|         Input                                            |"
+    putStrLn "+----------------------------------------------------------+"
     putStr content
-    putStr "Parsed:    "
+    putStrLn "+----------------------------------------------------------+"
+    putStrLn "|         Parsed                                           |"
+    putStrLn "+----------------------------------------------------------+"
     print parsed
-    putStr "Type:      "
+    putStrLn "+----------------------------------------------------------+"
+    putStrLn "|         Type                                             |"
+    putStrLn "+----------------------------------------------------------+"
     print . findType $ parsed
-    putStr "Evaluated: "
+    putStrLn "+----------------------------------------------------------+"
+    putStrLn "|         Evaluated                                        |"
+    putStrLn "+----------------------------------------------------------+"
     print . evalAll $ parsed
 
 
@@ -102,7 +110,6 @@ getType env (TypeApp t₁ t₂) = handle $ getType env t₁
         handle _ = error "Failed to get type @ TypeApp"
 -- T-Define
 getType env (Define v e) = getType env e
--- T-Eq? TODO
 
 -- |Recursively applies kinding rules to find the kind of a given type
 getKind :: Env -> Type -> Kind
@@ -131,6 +138,7 @@ getKind env (Forall (Var x) k₁ t₂)
 
 -- |Check whether two given types can be considered equivalent.
 --  Should probably be used everywhere we would have used t₁ == t₂.
+--  Based on T-Eq and all the Q-*
 eqType :: Type -> Type -> Bool
 -- If Haskell can do it, then do not worry.
 eqType t₁ t₂

@@ -1,5 +1,10 @@
 ; TODO run through drracket's indenter
 
+(define inttoint (Λ T (⇒ * *) (λ x (T (→ int int)) x)))
+(define inttointtobool
+	[inttoint (λ sometype * (→ sometype bool))])
+;(define )
+
 ; Wrong plusfive
 (define plusfive (λ n int (succ 0)))
 (define minustwo (λ n int (pred (pred n))))
@@ -16,9 +21,6 @@
 
 ((idinttobool isone) (idint (succ 0)))
 
-; Works
-(define clearinttointTOinttoint (λ x (→ int int) x))
-(clearinttointTOinttoint (λ x int x))
 ; The following will fail due to no type equivalence
 (define obscureinttointTOinttoint
 	(λ x
@@ -27,3 +29,8 @@
 (
 	obscureinttointTOinttoint
 	(λ x int x))
+
+(
+ ((λ x int (λ f (→ int int) (f x))) (succ 0))
+ (λ x int x)
+)
