@@ -1,9 +1,28 @@
 ; TODO run through drracket's indenter
 
-(define inttoint (Λ T (⇒ * *) (λ x (T (→ int int)) x)))
-(define inttointtobool
-	[inttoint (λ sometype * (→ sometype bool))])
-;(define )
+; Type abstraction
+(define reverse
+  (Λ T *
+     (λ x (→ T bool)
+       (λ y T
+         (if (x y)
+             false
+             true)))))
+; Type application
+; inttointtobool is now of type (→ (→ int bool) (→ int bool))
+(define reverseinttobool
+  [reverse int])
+
+; Simple abstraction
+; Type (→ int bool)
+(define morethanone (λ n int (iszero (pred n))))
+
+(define lessorequalthanone (reverseinttobool morethanone))
+
+(lessorequalthanone (succ 0))
+
+;; Older stuff
+
 
 ; Wrong plusfive
 (define plusfive (λ n int (succ 0)))
