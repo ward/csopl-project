@@ -59,21 +59,22 @@ getType _ Btrue = Tbool
 getType _ Bfalse = Tbool
 -- T-If
 getType env (If c t f)
-    | getType env c == Tbool && getType env t == getType env f = getType env t
+    | eqType (getType env c) Tbool
+        && eqType (getType env t) (getType env f) = getType env t
     | otherwise = error "Failed to get type @ if"
 -- T-Zero
 getType _ Zero = Tint
 -- T-Succ
 getType env (Succ e)
-    | getType env e == Tint = Tint
+    | eqType (getType env e) Tint = Tint
     | otherwise = error "Failed to get type @ succ"
 -- T-Pred
 getType env (Pred e)
-    | getType env e == Tint = Tint
+    | eqType (getType env e) Tint = Tint
     | otherwise = error "Failed to get type @ pred"
 -- T-Iszero
 getType env (Iszero e)
-    | getType env e == Tint = Tbool
+    | eqType (getType env e) Tint = Tbool
     | otherwise = error "Failed to get type @ iszero"
 -- T-Var
 getType env (VarUsage (Var s)) = case Map.lookup s env of
@@ -84,7 +85,7 @@ getType env (App e1 e2) = handle $ getType env e1
     where
         handle :: Type -> Type
         handle (Arrow t1 t2)
-            | t1 == getType env e2 = t2
+            | eqType t1 (getType env e2) = t2
         handle _ = error "Failed to get type @ App"
 -- T-Abs
 getType env (Abs (Var var) t e)
@@ -127,6 +128,27 @@ getKind env (Arrow t₁ t₂)
 -- K-All
 getKind env (Forall (Var x) k₁ t₂)
     | getKind (Map.insert x (Right k₁) env) t₂ == Star = Star
+
+-- |Check whether two given types can be considered equivalent.
+--  Should probably be used everywhere we would have used t₁ == t₂.
+eqType :: Type -> Type -> Bool
+-- If Haskell can do it, then do not worry.
+eqType t₁ t₂
+    | t₁ == t₂ = True
+-- We can assume this since we check for same kinds before reaching this
+eqType (TypeVarUsage x) (TypeVarUsage y) = True
+-- TODO How the hell do you do Q-Trans? ...
+-- Q-Arrow
+eqType (Arrow s₁ s₂) (Arrow t₁ t₂) = eqType s₁ t₁ && eqType s₂ t₂
+-- Q-All
+eqType (Forall x k₁ t₁) (Forall y k₂ t₂) = k₁ == k₂ && eqType t₁ t₂
+-- Q-Abs
+eqType (OpAbs x k₁ t₁) (OpAbs y k₂ t₂) = k₁ == k₂ && eqType t₁ t₂
+-- Q-App
+eqType (OpApp s₁ s₂) (OpApp t₁ t₂) = eqType s₁ t₁ && eqType s₂ t₂
+-- Q-AppAbs
+eqType (OpApp (OpAbs (Var x) k t₁₂) t₂) t = eqType t $ substituteTypeInType x t₂ t₁₂
+eqType t₁ t₂ = False
 
 --  ______          _             _   _
 -- |  ____|        | |           | | (_)
