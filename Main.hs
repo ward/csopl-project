@@ -155,7 +155,10 @@ eqType (OpAbs x k₁ t₁) (OpAbs y k₂ t₂) = k₁ == k₂ && eqType t₁ t�
 -- Q-App
 eqType (OpApp s₁ s₂) (OpApp t₁ t₂) = eqType s₁ t₁ && eqType s₂ t₂
 -- Q-AppAbs
-eqType (OpApp (OpAbs (Var x) k t₁₂) t₂) t = eqType t $ substituteTypeInType x t₂ t₁₂
+eqType (OpApp (OpAbs (Var x) k t₁₂) t₂) t
+    = eqType t $ substituteTypeInType x t₂ t₁₂
+eqType t (OpApp (OpAbs (Var x) k t₁₂) t₂)
+    = eqType t $ substituteTypeInType x t₂ t₁₂
 eqType t₁ t₂ = False
 
 --  ______          _             _   _

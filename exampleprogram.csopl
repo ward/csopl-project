@@ -1,55 +1,57 @@
-; TODO run through drracket's indenter
+; Clearly does not prevent evaluation of the second argument
+; type: (→ bool (→ bool bool))
+(define and (λ x bool
+              (if x
+                  (λ y bool y)
+                  (λ y bool false))))
+(define or (λ x bool
+             (if x
+                 (λ y bool true)
+                 (λ y bool y))))
+; type: (→ bool bool)
+(define not (λ x bool
+              (if x
+                  false
+                  true)))
 
 ; Type abstraction
+; type: ∀ T * (→ (→ T bool) (→ T bool))
 (define reverse
   (Λ T *
      (λ x (→ T bool)
        (λ y T
-         (if (x y)
-             false
-             true)))))
+         (not (x y))))))
 ; Type application
-; inttointtobool is now of type (→ (→ int bool) (→ int bool))
+; type: (→ (→ int bool) (→ int bool))
 (define reverseinttobool
   [reverse int])
 
-; Simple abstraction
-; Type (→ int bool)
-(define morethanone (λ n int (iszero (pred n))))
+; type: (→ int bool)
+(define lessorequalthanone (λ n int (iszero (pred n))))
 
-(define lessorequalthanone (reverseinttobool morethanone))
+; type: (→ int bool)
+(define morethanone (reverseinttobool lessorequalthanone))
 
-(lessorequalthanone (succ 0))
+; Operator abstraction works fine
+; Except when it doesn't... handle function is not enough
+(define plusfive
+  (λ n
+    ((λ T (⇒ * *) (T int))
+     (λ X * X))
+    (succ (succ (succ (succ (succ n)))))))
 
-;; Older stuff
 
+(define applytwice
+  (Λ T *
+     (λ f (→ T T)
+       (λ x T (f (f x))))))
+; type: (→ (→ int int) (→ int int))
+(define applyinttwice [applytwice int])
+; (define applyfourtimes
+; 	)
 
-; Wrong plusfive
-(define plusfive (λ n int (succ 0)))
-(define minustwo (λ n int (pred (pred n))))
-; Correct plusfive by overriding
-(define plusfive (λ n int (succ (succ (succ (succ (succ n)))))))
-
-; Type abstraction
-(define idgeneric (Λ X * (λ x X x)))
-; Type application
-(define idint [idgeneric int])
-(define idinttobool [idgeneric (→ int bool)])
-
-(define isone (λ n int (iszero (pred n))))
-
-((idinttobool isone) (idint (succ 0)))
-
-; The following will fail due to no type equivalence
-(define obscureinttointTOinttoint
-	(λ x
-		((λ T * (→ T T)) int)
-		x))
-(
-	obscureinttointTOinttoint
-	(λ x int x))
-
-(
- ((λ x int (λ f (→ int int) (f x))) (succ 0))
- (λ x int x)
-)
+; type: bool
+; eval: true
+; ((and
+;   (lessorequalthanone (succ 0)))
+;  (morethanone (plusfive 0)))
