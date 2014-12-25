@@ -33,7 +33,6 @@
 (define morethanone (reverseinttobool lessorequalthanone))
 
 ; Operator abstraction works fine
-; Except when it doesn't... handle function is not enough
 (define plusfive
   (λ n
     ((λ T (⇒ * *) (T int))
@@ -41,17 +40,40 @@
     (succ (succ (succ (succ (succ n)))))))
 
 
+; type: ∀ T * (→ (→ T T) (→ T T))
 (define applytwice
   (Λ T *
      (λ f (→ T T)
        (λ x T (f (f x))))))
 ; type: (→ (→ int int) (→ int int))
 (define applyinttwice [applytwice int])
-; (define applyfourtimes
-; 	)
+; type: (→ (→ (→ int int) (→ int int))
+;          (→ (→ int int) (→ int int)))
+(define applyinttointtwice [applytwice (→ int int)])
+; type: (→ (→ int int) (→ int int))
+(define applyfourtimes (applyinttointtwice applyinttwice))
+; type: (→ (→ int int) (→ int int))
+(define applysixteentimes (applyinttointtwice applyfourtimes))
+; type: (→ (→ int int) (→ int int))
+(define applytwofivesixtimes (applyinttointtwice applysixteentimes))
+; Adds 1280 (= 5*2^8)
+; type: (→ int int)
+(define plusthousandsomesuch (applytwofivesixtimes plusfive))
+; Remove 2^9
+; type: (→ int int)
+(define minustwotonine (applytwofivesixtimes (λ x int (pred (pred x)))))
+; Remove 32
+(define minusthirtytwo (applyinttwice (applysixteentimes (λ x int (pred x)))))
 
-; type: bool
-; eval: true
-; ((and
-;   (lessorequalthanone (succ 0)))
-;  (morethanone (plusfive 0)))
+; aah numbers
+(define whatishappening
+  (minusthirtytwo
+   (minustwotonine
+    (plusthousandsomesuch
+     (plusthousandsomesuch 0)))))
+
+
+(if ((and (lessorequalthanone (succ 0)))
+          (morethanone (plusfive 0)))
+    (pred whatishappening) ; 2015 :)
+    0) ; Come back again next year
