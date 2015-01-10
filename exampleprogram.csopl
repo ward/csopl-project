@@ -63,16 +63,18 @@
 ; type: (→ int int)
 (define minustwotonine (applytwofivesixtimes (λ x int (pred (pred x)))))
 ; Remove 32
+; type: (→ int int)
 (define minusthirtytwo (applyinttwice (applysixteentimes (λ x int (pred x)))))
 
 ; aah numbers
+; type: int
 (define whatishappening
   (minusthirtytwo
    (minustwotonine
     (plusthousandsomesuch
      (plusthousandsomesuch 0)))))
 
-
+; type: int
 (if ((and (lessorequalthanone (succ 0)))
           (morethanone (plusfive 0)))
     (pred whatishappening) ; 2015 :)
