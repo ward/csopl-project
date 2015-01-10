@@ -29,11 +29,6 @@ import Data.Char
     ')' { TokenCloseBracket }
     '[' { TokenOpenSqBracket }
     ']' { TokenCloseSqBracket }
-    add { TokenAdd }
-    mult { TokenMult }
-    sub { TokenSub }
-    div { TokenDiv }
-    while { TokenWhile }
     'λ' { TokenLambda }
     'Λ' { TokenBigLambda }
     '→' { TokenArrow }
@@ -64,11 +59,6 @@ Do
     | succ Exp { Succ $2 }
     | pred Exp { Pred $2 }
     | iszero Exp { Iszero $2 }
-    | add Exp Exp { Add $2 $3 }
-    | mult Exp Exp { Mult $2 $3 }
-    | sub Exp Exp { Sub $2 $3 }
-    | div Exp Exp { Div $2 $3 }
-    | while Exp Exp { While $2 $3 }
     | 'λ' Variable Type Exp { Abs $2 $3 $4 }
     | 'Λ' Variable Kind Exp { TypeAbs $2 $3 $4 }
     | Exp Exp { App $1 $2 }
@@ -109,11 +99,6 @@ data Exp
     | Succ Exp
     | Pred Exp
     | Iszero Exp
-    | Add Exp Exp
-    | Mult Exp Exp
-    | Sub Exp Exp
-    | Div Exp Exp
-    | While Exp Exp
     | Abs Variable Type Exp
     | TypeAbs Variable Kind Exp
     | App Exp Exp
@@ -129,11 +114,6 @@ instance Show Exp where
     show (Succ x) = "(succ " ++ show x ++ ")"
     show (Pred x) = "(pred " ++ show x ++ ")"
     show (Iszero x) = "(iszero " ++ show x ++ ")"
-    show (Add x y) = "(+ " ++ show x ++ " " ++ show y ++ ")"
-    show (Mult x y) = "(* " ++ show x ++ " " ++ show y ++ ")"
-    show (Sub x y) = "(- " ++ show x ++ " " ++ show y ++ ")"
-    show (Div x y) = "(/ " ++ show x ++ " " ++ show y ++ ")"
-    show (While c b) = "(while " ++ show c ++ " " ++ show b ++ ")"
     show (Abs v t e) = "(λ " ++ show v ++ " " ++ show t ++ " " ++ show e ++ ")"
     show (TypeAbs v k e) = "(Λ " ++ show v ++ " " ++ show k ++ " " ++ show e ++ ")"
     show (App x y) = "(" ++ show x ++ " " ++ show y ++ ")"
@@ -184,11 +164,6 @@ data Token
     | TokenCloseBracket
     | TokenOpenSqBracket
     | TokenCloseSqBracket
-    | TokenAdd
-    | TokenMult
-    | TokenSub
-    | TokenDiv
-    | TokenWhile
     | TokenLambda
     | TokenBigLambda
     | TokenArrow
@@ -232,11 +207,6 @@ lexer cs =
         ("pred", rest) -> TokenPred : lexer rest
         ("true", rest) -> TokenTrue : lexer rest
         ("false", rest) -> TokenFalse : lexer rest
-        ("add", rest) -> TokenAdd : lexer rest
-        ("mult", rest) -> TokenMult : lexer rest
-        ("sub", rest) -> TokenSub : lexer rest
-        ("div", rest) -> TokenDiv : lexer rest
-        ("while", rest) -> TokenWhile : lexer rest
         ("int", rest) -> TokenTypeInt : lexer rest
         ("bool", rest) -> TokenTypeBool : lexer rest
         ("define", rest) -> TokenDefine : lexer rest
