@@ -119,7 +119,26 @@ data Exp
     | App Exp Exp
     | TypeApp Exp Type
     | Define Variable Exp
-        deriving (Show, Eq)
+        deriving (Eq)
+instance Show Exp where
+    show Btrue = "true"
+    show Bfalse = "false"
+    show Zero = "0"
+    show (VarUsage v) = show v
+    show (If c t f) = "(if " ++ show c ++ " " ++ show t ++ " " ++ show f ++ ")"
+    show (Succ x) = "(succ " ++ show x ++ ")"
+    show (Pred x) = "(pred " ++ show x ++ ")"
+    show (Iszero x) = "(iszero " ++ show x ++ ")"
+    show (Add x y) = "(+ " ++ show x ++ " " ++ show y ++ ")"
+    show (Mult x y) = "(* " ++ show x ++ " " ++ show y ++ ")"
+    show (Sub x y) = "(- " ++ show x ++ " " ++ show y ++ ")"
+    show (Div x y) = "(/ " ++ show x ++ " " ++ show y ++ ")"
+    show (While c b) = "(while " ++ show c ++ " " ++ show b ++ ")"
+    show (Abs v t e) = "(λ " ++ show v ++ " " ++ show t ++ " " ++ show e ++ ")"
+    show (TypeAbs v k e) = "(Λ " ++ show v ++ " " ++ show k ++ " " ++ show e ++ ")"
+    show (App x y) = "(" ++ show x ++ " " ++ show y ++ ")"
+    show (TypeApp x y) = "[" ++ show x ++ " " ++ show y ++ "]"
+    show (Define v e) = "(define " ++ show v ++ " " ++ show e ++ ")"    
 
 data Type
     = Tint
@@ -133,10 +152,10 @@ data Type
 instance Show Type where
     show Tint = "int"
     show Tbool = "bool"
-    show (TypeVarUsage v) = "(TVU (" ++ show v ++ "))"
+    show (TypeVarUsage v) = show v--"(TVU (" ++ show v ++ "))"
     show (Arrow t₁ t₂) = "(→ " ++ show t₁ ++ " " ++ show t₂ ++ ")"
-    show (Forall v k t) = "(∀ (" ++ show v ++ ") " ++ show k ++ " " ++ show t ++ ")"
-    show (OpAbs v k t) = "(λ (" ++ show v ++ ") " ++ show k ++ " " ++ show t ++ ")"
+    show (Forall v k t) = "(∀ " ++ show v ++ " " ++ show k ++ " " ++ show t ++ ")"
+    show (OpAbs v k t) = "(λ " ++ show v ++ " " ++ show k ++ " " ++ show t ++ ")"
     show (OpApp t₁ t₂) = "(" ++ show t₁ ++ " " ++ show t₂ ++ ")"
 
 data Kind
@@ -149,7 +168,9 @@ instance Show Kind where
 
 data Variable
     = Var String
-        deriving (Show, Eq)
+        deriving (Eq)
+instance Show Variable where
+    show (Var s) = s 
 
 data Token
     = TokenTrue
