@@ -39,30 +39,34 @@ regular Haskell file.
 ### Type checking
 
 The type checker resides in `Main.hs` under the name `findType`. Though this
-simply immediately calls `getType` with a starting environment. Following the
-rules as described in the book, it finds out the type of an expression by
-recursively finding the types of the subexpressions that are of relevance.
+simply immediately calls `getTypeAll` with a starting environment. At this point
+there is a list of expressions `Exp`. Actual analysis of each is done in
+`getType`. Following the rules as described in the book, this function finds out
+the type of an expression by recursively finding the types of the subexpressions
+that are of relevance. It is aided in this endeavour by `getKind`, which allows
+to find the kind of a type expression, and `eqType` which handles type
+equivalence.
 
-For example, `(if t1 t2 t3)` will be of type `T` if `t1` is of type `Bool`, `t2`
-is of type `T` and `t3` is of type `T`. So the types of the three arguments are
-checked to see if things add up. The base cases are `true`, `false` and `0`
-which are of type `bool`, `bool` and `int`, respectively.
+As a very simple example, `(if t1 t2 t3)` will be of type `T` if `t1` is of type
+`Bool`, `t2` is of type `T` and `t3` is of type `T`. So the types of the three
+arguments are checked to see if things add up. The base cases are `true`,
+`false` and `0` which are of type `bool`, `bool` and `int`, respectively.
 
-If something is badly typed, an error is thrown. (yes, I realize this isn't very
-Haskell-y)
+If something is badly typed, an error is thrown.
 
 ### Evaluator
 
-The evaluator is also defined in `Main.hs`, under the name `eval`. Before
+The evaluator is also defined in `Main.hs`, under the name `evalAll` which, like
+`getTypeAll` does to `getType`, offloads the actual work to `eval`. Before
 evaluating an expression, it evaluates its terms as needed - in accordance with
-the rules as described in the book. After this, pattern matching is used to be
-able to apply the correct rule.
+the rules as described in the book. Afterwards the actual evaluation takes
+place (computation rule).
 
-Note that a function was added to convert a `Value` (that is, something at the
-end of a chain of evaluation) back to an `Exp` as sometimes the result of an
-evaluation would require a new evaluation on a different expression. Needing
-this helper function was a consequence of deciding to use a different type as
-the return type of the evaluation function.
+### Other
+
+A few substitution functions are present which are needed in both the type
+checker and the evaluator. Finally there is also a helper function which checks
+whether something is a value, as considered by the syntax definition.
 
 ### Main
 
